@@ -585,3 +585,24 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* added function, compares ticks of waiting threads */
+bool
+Tick_Cmp (const struct list_elem *a,
+			   const struct list_elem *b,
+			   void *aux UNUSED)
+{
+	bool found = false;
+	struct thread *ca = list_entry(a, struct thread, elem);
+	struct thread *cb = list_entry(b, struct thread, elem);
+
+	if(ca->wait_tick < cb->wait_tick)
+	{
+		found = true;
+	}
+	else
+	{
+		found = false;
+	}
+	return found;
+}

@@ -87,6 +87,7 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    int64_t wait_tick;					/* added variable to track ticks */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -137,5 +138,10 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* added function for list sorting */
+bool Tick_Cmp (const struct list_elem *a,
+			   const struct list_elem *b,
+			   void *aux UNUSED);
 
 #endif /* threads/thread.h */

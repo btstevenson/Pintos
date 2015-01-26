@@ -17,6 +17,9 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+/* list for waiting threads for a certain amount of ticks */
+struct semaphore wait_list;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -35,6 +38,8 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  //initialize wait_list with value of zero, will be ticks afterwards
+  sema_init(&wait_list, 0);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -84,16 +89,21 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-/* Sleeps for approximately TICKS timer ticks.  Interrupts must
-   be turned on. */
+/* Puts thread in wait_list to be woke up */
+
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  //struct thread *currThread = thread_current();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /* turn off interrupts to get tick count
+   * and add thread to wail_list
+   */
+  enum intr_level old_level = intr_disable ();
+  thread_current ()->wait_tick = timer_ticks() + ticks;
+  sema_down(&wait_list);
+  intr_set_level(old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +182,23 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  // get beginning of list to check for threads done waiting
+  struct list_elem *temp_list = list_begin(&wait_list.waiters);
+  struct thread *temp_thread = NULL;
+
+	  temp_thread = list_entry(temp_list, struct thread, elem);
+	  // since list is sorted no need to check rest
+	  if (temp_thread->wait_tick < ticks)
+	  {
+		  sema_up(&wait_list);
+	  }
+
+
+  /* will need to create calls here to waiting que to find what thread
+  * needs to be woke up and ran. List will be sorted by ticks, so
+  * first thread will be the thread to move into the ready que
+  * which is sorted by highest priority
+  ****************************************************************/
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
