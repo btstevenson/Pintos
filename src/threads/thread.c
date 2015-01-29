@@ -98,6 +98,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->wait_tick = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -183,6 +184,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  printf("created thread with id: %i and priority: %i\n", t->tid, t->priority);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -225,6 +227,7 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
+  printf("thread id %i is blocked\n", thread_current ()->tid);
   schedule ();
 }
 
@@ -245,8 +248,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  list_push_back(&ready_list, &t->elem);
+  printf("thread id: %i, priority: %i added to ready list\n", t->tid, t->priority);
   intr_set_level (old_level);
 }
 
@@ -313,7 +317,7 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
+/* need to fix list ordering */
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
@@ -383,7 +387,6 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -588,15 +591,35 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 /* added function, compares ticks of waiting threads */
 bool
-Tick_Cmp (const struct list_elem *a,
-			   const struct list_elem *b,
-			   void *aux UNUSED)
+tick_cmp (const struct list_elem *a,
+		  const struct list_elem *b,
+		  void *aux UNUSED)
 {
 	bool found = false;
 	struct thread *ca = list_entry(a, struct thread, elem);
 	struct thread *cb = list_entry(b, struct thread, elem);
 
 	if(ca->wait_tick < cb->wait_tick)
+	{
+		found = true;
+	}
+	else
+	{
+		found = false;
+	}
+	return found;
+}
+
+bool
+priority_cmp (const struct list_elem *a,
+			  const struct list_elem *b,
+			  void *aux UNUSED)
+{
+	bool found = false;
+	struct thread *ca = list_entry(a, struct thread, elem);
+	struct thread *cb = list_entry(b, struct thread, elem);
+
+	if(ca->priority > cb->priority)
 	{
 		found = true;
 	}

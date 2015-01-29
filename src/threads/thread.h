@@ -90,6 +90,7 @@ struct thread
     int64_t wait_tick;					/* added variable to track ticks */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem waitelem;			/* List element for wait_list */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -140,8 +141,12 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* added function for list sorting */
-bool Tick_Cmp (const struct list_elem *a,
+bool tick_cmp (const struct list_elem *a,
 			   const struct list_elem *b,
 			   void *aux UNUSED);
+
+bool priority_cmp (const struct list_elem *a,
+			  	   const struct list_elem *b,
+				   void *aux UNUSED);
 
 #endif /* threads/thread.h */
