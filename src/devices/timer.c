@@ -97,7 +97,6 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  //struct thread *currThread = thread_current();
   enum intr_level old_level;
 
   ASSERT (intr_get_level () == INTR_ON);
@@ -110,16 +109,16 @@ timer_sleep (int64_t ticks)
 	  old_level = intr_disable ();
 	  list_insert_ordered(&wait_list, &thread_current ()->waitelem,
 			  	  	  (list_less_func *) &tick_cmp, NULL);
-	  printf("thread %i has been slept\n", thread_current ()->tid);
+	  //printf("thread %i has been slept\n", thread_current ()->tid);
 	  sema_up(&wait_lock);
 	  thread_block();
 	  intr_set_level (old_level);
-	  printf("up sema, wake thread if any\n");
+	  //printf("up sema, wake thread if any\n");
   }
   else
   {
 	  /* put thread on wait_lock list of waiters */
-	  printf("thread %i has entered sema wait list\n", thread_current ()->tid);
+	  //printf("thread %i has entered sema wait list\n", thread_current ()->tid);
 	  sema_down(&wait_lock);
   }
 }
@@ -210,7 +209,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 	  // since list is sorted no need to check rest
 	  if (temp_thread->wait_tick < ticks)
 	  {
-		    printf("unblocking thread %i\n", temp_thread->tid);
+		    //printf("unblocking thread %i\n", temp_thread->tid);
 		    thread_unblock (list_entry (list_pop_front (&wait_list),
 		                                struct thread, waitelem));
 
@@ -221,13 +220,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		  break;
 	  }
   }
-
-
-  /* will need to create calls here to waiting que to find what thread
-  * needs to be woke up and ran. List will be sorted by ticks, so
-  * first thread will be the thread to move into the ready que
-  * which is sorted by highest priority
-  ****************************************************************/
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

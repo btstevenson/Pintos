@@ -250,8 +250,8 @@ thread_unblock (struct thread *t)
   list_insert_ordered(&ready_list, &t->elem,
 		  	  (list_less_func *) &priority_cmp, NULL);
   t->status = THREAD_READY;
-  printf("thread id: %i, priority: %i added to ready list\n", t->tid, t->priority);
-  printf("ready size is: %i\n", list_size(&ready_list));
+  //printf("thread id: %i, priority: %i added to ready list\n", t->tid, t->priority);
+  //printf("ready size is: %i\n", list_size(&ready_list));
   intr_set_level (old_level);
 }
 

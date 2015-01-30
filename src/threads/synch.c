@@ -77,7 +77,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-	  list_push_back(&sema->waiters, &thread_current ()->semaelem);
+	  list_insert_ordered(&sema->waiters, &thread_current ()->semaelem,
+			  (list_less_func *) &priority_cmp, NULL);
       thread_block ();
     }
   sema->value--;
@@ -124,7 +125,7 @@ sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
   {
-	  printf("done in try down, waking thread off of sema list if any\n");
+	  //printf("done in try down, waking thread off of sema list if any\n");
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, semaelem));
   }
