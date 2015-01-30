@@ -227,7 +227,6 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
-  printf("thread id %i is blocked\n", thread_current ()->tid);
   schedule ();
 }
 
@@ -248,9 +247,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  list_insert_ordered(&ready_list, &t->elem,
+		  	  (list_less_func *) &priority_cmp, NULL);
   t->status = THREAD_READY;
-  list_push_back(&ready_list, &t->elem);
   printf("thread id: %i, priority: %i added to ready list\n", t->tid, t->priority);
+  printf("ready size is: %i\n", list_size(&ready_list));
   intr_set_level (old_level);
 }
 
@@ -319,8 +320,11 @@ thread_yield (void)
   ASSERT (!intr_context ());
 /* need to fix list ordering */
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread)
+  {
+	  list_insert_ordered (&ready_list, &cur->elem,
+			  (list_less_func *) &priority_cmp, NULL);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -561,7 +565,7 @@ schedule (void)
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
-
+  //printf("next thread to run is thread %i\n", next->tid);
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
@@ -596,8 +600,8 @@ tick_cmp (const struct list_elem *a,
 		  void *aux UNUSED)
 {
 	bool found = false;
-	struct thread *ca = list_entry(a, struct thread, elem);
-	struct thread *cb = list_entry(b, struct thread, elem);
+	struct thread *ca = list_entry(a, struct thread, waitelem);
+	struct thread *cb = list_entry(b, struct thread, waitelem);
 
 	if(ca->wait_tick < cb->wait_tick)
 	{

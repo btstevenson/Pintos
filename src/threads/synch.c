@@ -77,8 +77,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-	  list_insert_ordered (&sema->waiters, &thread_current ()->elem,
-	      		  	  	  	   (list_less_func *) &Tick_Cmp, NULL);
+	  list_push_back(&sema->waiters, &thread_current ()->semaelem);
       thread_block ();
     }
   sema->value--;
@@ -111,29 +110,6 @@ sema_try_down (struct semaphore *sema)
   return success;
 }
 
-/* added function
- *  Only used by wait_list to have waiters
- *  sorted instead of push back
- */
-void
-sema_down_wait_list (struct semaphore *sema)
-{
-  enum intr_level old_level;
-
-  ASSERT (sema != NULL);
-  ASSERT (!intr_context ());
-
-  old_level = intr_disable ();
-  while (sema->value == 0)
-    {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem,
-    		  	  	  	   (list_less_func *) &Tick_Cmp, NULL);
-      thread_block ();
-    }
-  sema->value--;
-  intr_set_level (old_level);
-}
-
 /* Up or "V" operation on a semaphore.  Increments SEMA's value
    and wakes up one thread of those waiting for SEMA, if any.
 
@@ -146,9 +122,12 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  if (!list_empty (&sema->waiters))
+  {
+	  printf("done in try down, waking thread off of sema list if any\n");
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+                                struct thread, semaelem));
+  }
   sema->value++;
   intr_set_level (old_level);
 }

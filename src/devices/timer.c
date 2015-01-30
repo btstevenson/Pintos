@@ -17,8 +17,10 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
-/* list for waiting threads for a certain amount of ticks */
-struct semaphore wait_list;
+static struct list wait_list;
+
+/* semaphore to control access to wait_list */
+static struct semaphore wait_lock;
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -39,7 +41,8 @@ void
 timer_init (void) 
 {
   //initialize wait_list with value of zero, will be ticks afterwards
-  sema_init(&wait_list, 0);
+  sema_init(&wait_lock, 1);
+  list_init(&wait_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -95,15 +98,30 @@ void
 timer_sleep (int64_t ticks) 
 {
   //struct thread *currThread = thread_current();
+  enum intr_level old_level;
 
   ASSERT (intr_get_level () == INTR_ON);
   /* turn off interrupts to get tick count
    * and add thread to wail_list
    */
-  enum intr_level old_level = intr_disable ();
   thread_current ()->wait_tick = timer_ticks() + ticks;
-  sema_down(&wait_list);
-  intr_set_level(old_level);
+  if(sema_try_down(&wait_lock))
+  {
+	  old_level = intr_disable ();
+	  list_insert_ordered(&wait_list, &thread_current ()->waitelem,
+			  	  	  (list_less_func *) &tick_cmp, NULL);
+	  printf("thread %i has been slept\n", thread_current ()->tid);
+	  sema_up(&wait_lock);
+	  thread_block();
+	  intr_set_level (old_level);
+	  printf("up sema, wake thread if any\n");
+  }
+  else
+  {
+	  /* put thread on wait_lock list of waiters */
+	  printf("thread %i has entered sema wait list\n", thread_current ()->tid);
+	  sema_down(&wait_lock);
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -183,15 +201,26 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
   // get beginning of list to check for threads done waiting
-  struct list_elem *temp_list = list_begin(&wait_list.waiters);
+  struct list_elem *temp_list = list_begin(&wait_list);
   struct thread *temp_thread = NULL;
 
-	  temp_thread = list_entry(temp_list, struct thread, elem);
+  while(temp_list != list_end(&wait_list))
+  {
+	  temp_thread = list_entry(temp_list, struct thread, waitelem);
 	  // since list is sorted no need to check rest
 	  if (temp_thread->wait_tick < ticks)
 	  {
-		  sema_up(&wait_list);
+		    printf("unblocking thread %i\n", temp_thread->tid);
+		    thread_unblock (list_entry (list_pop_front (&wait_list),
+		                                struct thread, waitelem));
+
+		    temp_list = list_remove(temp_list);
 	  }
+	  else
+	  {
+		  break;
+	  }
+  }
 
 
   /* will need to create calls here to waiting que to find what thread
