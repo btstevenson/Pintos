@@ -77,7 +77,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-	  list_insert_ordered(&sema->waiters, &thread_current ()->semaelem,
+	  list_insert_ordered(&sema->waiters, &thread_current ()->elem,
 			  (list_less_func *) &priority_cmp, NULL);
       thread_block ();
     }
@@ -126,11 +126,16 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters))
   {
 	  //printf("done in try down, waking thread off of sema list if any\n");
+	/* sort list before unblock as priorities might have changed
+	 * the sort should not take long unless every value changed*/
+	list_sort(&sema->waiters, (list_less_func *) &priority_cmp, NULL);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, semaelem));
+                                struct thread, elem));
   }
   sema->value++;
   intr_set_level (old_level);
+  /* checking if thread should keep running */
+  thread_run_max(thread_current ());
 }
 
 static void sema_test_helper (void *sema_);
@@ -192,6 +197,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  lock->priority_given = -1;
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -205,12 +211,25 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
+  enum intr_level old_level;
+
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
+  if(lock->holder != NULL)
+  {
+  	  if(lock->holder->priority < thread_current ()->priority)
+  	  {
+	  	  /* disable interrupts to make sure donate is not interrupted */
+	  	  old_level = intr_disable ();
+	  	  thread_donate_priority(lock, thread_current ()->priority);
+	  	  intr_set_level (old_level);
+  	  }
+  	  thread_current ()->lock_wait = lock;
+  }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+  list_push_back(&thread_current ()->lock_hold, &lock->lockelem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -241,10 +260,32 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
+  struct thread *cur = thread_current ();
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  /* remove lock from thread hold list */
+  list_remove(&lock->lockelem);
+
+  /* check if thread received donation */
+  if(cur->priority != cur->orig_priority)
+  {
+	  if(!list_empty(&cur->lock_hold))
+	  {
+		  /* sort list to get highest priority for remaining locks owned */
+		  list_sort(&cur->lock_hold, (list_less_func *) &sort_lock_list, NULL);
+		  cur->priority = (list_entry(list_front(&cur->lock_hold), struct lock,
+				  	  	  lockelem))->priority_given;
+	  }
+	  else
+	  {
+		  /* set priority back to original as thread owns no locks */
+		  cur->priority = cur->orig_priority;
+	  }
+  }
   lock->holder = NULL;
+  /* reset priority of lock to below min value */
+  lock->priority_given = -1;
   sema_up (&lock->semaphore);
 }
 
@@ -348,4 +389,19 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+bool
+sort_lock_list(const struct list_elem *a,
+					const struct list_elem *b,
+					void *aux  UNUSED)
+{
+	bool found = false;
+	struct lock *la = list_entry(a, struct lock, lockelem);
+	struct lock *lb = list_entry(b, struct lock, lockelem);
+	if(la->priority_given > lb->priority_given)
+	{
+		found = true;
+	}
+	return found;
 }

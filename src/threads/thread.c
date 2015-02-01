@@ -20,6 +20,8 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+#define MAX_DEPTH 8
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -184,7 +186,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  printf("created thread with id: %i and priority: %i\n", t->tid, t->priority);
+  //printf("created thread with id: %i and priority: %i\n", t->tid, t->priority);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -329,6 +331,69 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 }
+/* check if thread needs to yield */
+void thread_run_max(struct thread *cur)
+{
+	enum intr_level old_level;
+	struct thread *temp_thread;
+
+	if(!list_empty(&ready_list))
+	{
+		old_level = intr_disable ();
+		temp_thread = list_entry(list_front(&ready_list), struct thread, elem);
+		intr_set_level(old_level);
+		if(intr_context())
+		{
+			thread_ticks++;
+			if(cur->priority < temp_thread->priority ||
+					(thread_ticks >= TIME_SLICE &&
+					 cur->priority == temp_thread->priority))
+			{
+				intr_yield_on_return ();
+			}
+			return;
+		}
+		else
+		{
+			if(cur->priority < temp_thread->priority)
+			{
+				thread_yield ();
+			}
+		}
+	}
+}
+/* donate priority to lock holder */
+void thread_donate_priority(struct lock *lock, int don_prio)
+{
+	uint8_t depth = 0;
+	struct thread *receive = lock->holder;
+	struct thread *give = NULL;
+	struct lock *lock_hold = lock->holder->lock_wait;
+
+	receive->priority = don_prio;
+	lock->priority_given = don_prio;
+	if(lock_hold != NULL)
+	{
+		while(lock_hold != NULL && depth < MAX_DEPTH)
+		{
+			depth++;
+			give = receive;
+			receive = lock_hold->holder;
+			if(give->priority > receive->priority)
+			{
+				receive->priority = give->priority;
+				lock_hold->priority_given = give->priority;
+				lock_hold = receive->lock_wait;
+			}
+			else
+			{
+				lock_hold = NULL;
+			}
+		}
+	}
+	/* sort ready list with updated priorites */
+	list_sort(&ready_list, (list_less_func *) &priority_cmp, NULL);
+}
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
@@ -351,7 +416,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread *cur = thread_current ();
+
+  cur->orig_priority = new_priority;
+  if(new_priority > cur->priority)
+  {
+	  cur->priority = new_priority;
+  }
+  thread_run_max(cur);
 }
 
 /* Returns the current thread's priority. */
@@ -475,7 +547,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->orig_priority = priority;
   t->magic = THREAD_MAGIC;
+  t->blocked_lock = false;
+  list_init(&t->lock_hold);
   list_push_back (&all_list, &t->allelem);
 }
 
@@ -607,10 +682,6 @@ tick_cmp (const struct list_elem *a,
 	{
 		found = true;
 	}
-	else
-	{
-		found = false;
-	}
 	return found;
 }
 
@@ -626,10 +697,6 @@ priority_cmp (const struct list_elem *a,
 	if(ca->priority > cb->priority)
 	{
 		found = true;
-	}
-	else
-	{
-		found = false;
 	}
 	return found;
 }
