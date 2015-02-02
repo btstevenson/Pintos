@@ -99,8 +99,6 @@ struct thread
     struct lock *lock_wait;				/* Lock thread is waiting on */
     struct list lock_hold;				/* list of locks held by thread */
 
-    bool blocked_lock;
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

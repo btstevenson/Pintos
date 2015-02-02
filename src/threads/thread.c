@@ -186,7 +186,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  //printf("created thread with id: %i and priority: %i\n", t->tid, t->priority);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -249,11 +248,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  /* sort ready list by priority */
   list_insert_ordered(&ready_list, &t->elem,
 		  	  (list_less_func *) &priority_cmp, NULL);
   t->status = THREAD_READY;
-  //printf("thread id: %i, priority: %i added to ready list\n", t->tid, t->priority);
-  //printf("ready size is: %i\n", list_size(&ready_list));
   intr_set_level (old_level);
 }
 
@@ -320,7 +318,7 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-/* need to fix list ordering */
+
   old_level = intr_disable ();
   if (cur != idle_thread)
   {
@@ -342,6 +340,7 @@ void thread_run_max(struct thread *cur)
 		old_level = intr_disable ();
 		temp_thread = list_entry(list_front(&ready_list), struct thread, elem);
 		intr_set_level(old_level);
+		/* checking if thread is over time slice */
 		if(intr_context())
 		{
 			thread_ticks++;
@@ -355,6 +354,7 @@ void thread_run_max(struct thread *cur)
 		}
 		else
 		{
+			/* if thread is not highest priority, yield */
 			if(cur->priority < temp_thread->priority)
 			{
 				thread_yield ();
@@ -372,6 +372,7 @@ void thread_donate_priority(struct lock *lock, int don_prio)
 
 	receive->priority = don_prio;
 	lock->priority_given = don_prio;
+	/* check if need to do nested donation */
 	if(lock_hold != NULL)
 	{
 		while(lock_hold != NULL && depth < MAX_DEPTH)
@@ -511,7 +512,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -549,7 +550,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->orig_priority = priority;
   t->magic = THREAD_MAGIC;
-  t->blocked_lock = false;
   list_init(&t->lock_hold);
   list_push_back (&all_list, &t->allelem);
 }
@@ -640,7 +640,7 @@ schedule (void)
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
-  //printf("next thread to run is thread %i\n", next->tid);
+
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
@@ -663,7 +663,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
@@ -684,7 +684,7 @@ tick_cmp (const struct list_elem *a,
 	}
 	return found;
 }
-
+/* added function, compares priorities of threads */
 bool
 priority_cmp (const struct list_elem *a,
 			  const struct list_elem *b,

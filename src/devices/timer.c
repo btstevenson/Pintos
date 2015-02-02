@@ -17,6 +17,7 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+/* wait list for threads waiting */
 static struct list wait_list;
 
 /* semaphore to control access to wait_list */
@@ -40,7 +41,6 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
-  //initialize wait_list with value of zero, will be ticks afterwards
   sema_init(&wait_lock, 1);
   list_init(&wait_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
@@ -93,7 +93,6 @@ timer_elapsed (int64_t then)
 }
 
 /* Puts thread in wait_list to be woke up */
-
 void
 timer_sleep (int64_t ticks) 
 {
@@ -105,6 +104,7 @@ timer_sleep (int64_t ticks)
 
   if(sema_try_down(&wait_lock))
   {
+	  /* disable interrupts as wait_list is shared */
 	  old_level = intr_disable ();
 	  temp_thread->wait_tick = ticks_begin + ticks;
 	  list_insert_ordered(&wait_list, &temp_thread->waitelem,
@@ -197,15 +197,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
   enum intr_level old_level;
 
   ticks++;
-  // get beginning of list to check for threads done waiting
+  /* go through list finding threads to wake */
   while(!list_empty(&wait_list))
   {
 	  old_level = intr_disable ();
 	  temp_thread = list_entry(list_begin(&wait_list), struct thread, waitelem);
 	  intr_set_level (old_level);
-	  // since list is sorted no need to check rest
+	  /* since list is sorted no need to check rest */
 	  if (temp_thread->wait_tick > ticks)
+	  {
 		  break;
+	  }
 	  old_level = intr_disable ();
 	  thread_unblock (list_entry (list_pop_front (&wait_list),
 		                        struct thread, waitelem));

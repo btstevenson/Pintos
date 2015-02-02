@@ -77,6 +77,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
+	  /* sort threads by priority */
 	  list_insert_ordered(&sema->waiters, &thread_current ()->elem,
 			  (list_less_func *) &priority_cmp, NULL);
       thread_block ();
@@ -125,7 +126,6 @@ sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
   {
-	  //printf("done in try down, waking thread off of sema list if any\n");
 	/* sort list before unblock as priorities might have changed
 	 * the sort should not take long unless every value changed*/
 	list_sort(&sema->waiters, (list_less_func *) &priority_cmp, NULL);
@@ -174,7 +174,7 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
-
+
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
    is, it is an error for the thread currently holding a lock to
@@ -216,8 +216,10 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+  /* make sure this is not first time in lock */
   if(lock->holder != NULL)
   {
+	  /* check if donation is needed */
   	  if(lock->holder->priority < thread_current ()->priority)
   	  {
 	  	  /* disable interrupts to make sure donate is not interrupted */
@@ -225,6 +227,7 @@ lock_acquire (struct lock *lock)
 	  	  thread_donate_priority(lock, thread_current ()->priority);
 	  	  intr_set_level (old_level);
   	  }
+  	  /* thread is blocked by this lock add */
   	  thread_current ()->lock_wait = lock;
   }
   sema_down (&lock->semaphore);
@@ -264,7 +267,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  /* remove lock from thread hold list */
+  /* remove lock from thread lock_hold list */
   list_remove(&lock->lockelem);
 
   /* check if thread received donation */
