@@ -98,27 +98,24 @@ void
 timer_sleep (int64_t ticks) 
 {
   enum intr_level old_level;
+  int64_t ticks_begin = timer_ticks ();
+  struct thread *temp_thread = thread_current ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  /* turn off interrupts to get tick count
-   * and add thread to wail_list
-   */
-  thread_current ()->wait_tick = timer_ticks() + ticks;
+
   if(sema_try_down(&wait_lock))
   {
 	  old_level = intr_disable ();
-	  list_insert_ordered(&wait_list, &thread_current ()->waitelem,
+	  temp_thread->wait_tick = ticks_begin + ticks;
+	  list_insert_ordered(&wait_list, &temp_thread->waitelem,
 			  	  	  (list_less_func *) &tick_cmp, NULL);
-	  //printf("thread %i has been slept\n", thread_current ()->tid);
 	  sema_up(&wait_lock);
 	  thread_block();
 	  intr_set_level (old_level);
-	  //printf("up sema, wake thread if any\n");
   }
   else
   {
 	  /* put thread on wait_lock list of waiters */
-	  //printf("thread %i has entered sema wait list\n", thread_current ()->tid);
 	  sema_down(&wait_lock);
   }
 }
@@ -192,34 +189,29 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  ticks++;
-  thread_tick ();
-  // get beginning of list to check for threads done waiting
-  struct list_elem *temp_list = list_begin(&wait_list);
   struct thread *temp_thread = NULL;
+  enum intr_level old_level;
 
-  while(temp_list != list_end(&wait_list))
+  ticks++;
+  // get beginning of list to check for threads done waiting
+  while(!list_empty(&wait_list))
   {
-	  temp_thread = list_entry(temp_list, struct thread, waitelem);
+	  old_level = intr_disable ();
+	  temp_thread = list_entry(list_begin(&wait_list), struct thread, waitelem);
+	  intr_set_level (old_level);
 	  // since list is sorted no need to check rest
-	  if (temp_thread->wait_tick < ticks)
-	  {
-		    //printf("unblocking thread %i\n", temp_thread->tid);
-		    thread_unblock (list_entry (list_pop_front (&wait_list),
-		                                struct thread, waitelem));
-
-		    temp_list = list_remove(temp_list);
-	  }
-	  else
-	  {
+	  if (temp_thread->wait_tick > ticks)
 		  break;
-	  }
+	  old_level = intr_disable ();
+	  thread_unblock (list_entry (list_pop_front (&wait_list),
+		                        struct thread, waitelem));
+	  intr_set_level (old_level);
   }
+  thread_tick ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
