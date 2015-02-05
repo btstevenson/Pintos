@@ -436,7 +436,12 @@ thread_set_priority (int new_priority)
   {
 	  cur->priority = new_priority;
   }
+  else if(list_empty(&cur->lock_hold))
+  {
+	  cur->priority = new_priority;
+  }
   thread_run_max(cur);
+  //printf("%s set its priority\n", cur->name);
 }
 
 /* Returns the current thread's priority. */
