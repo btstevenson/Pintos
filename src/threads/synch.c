@@ -219,6 +219,7 @@ lock_acquire (struct lock *lock)
   /* make sure this is not first time in lock */
   if(lock->holder != NULL)
   {
+	//  printf("%s is entering donate\n", thread_current ()->name);
 	  /* check if donation is needed */
   	  if(lock->holder->priority < thread_current ()->priority)
   	  {
@@ -226,12 +227,15 @@ lock_acquire (struct lock *lock)
 	  	  old_level = intr_disable ();
 	  	  thread_donate_priority(lock, thread_current ()->priority);
 	  	  intr_set_level (old_level);
+//	  	  printf("%s now has priority %d\n", lock->holder->name, lock->holder->priority);
   	  }
   	  /* thread is blocked by this lock add */
   	  thread_current ()->lock_wait = lock;
   }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+ // printf("%s has lock, priority %d\n", thread_current ()->name,
+		//  	  thread_get_priority ());
   list_push_back(&thread_current ()->lock_hold, &lock->lockelem);
 }
 
@@ -264,9 +268,13 @@ void
 lock_release (struct lock *lock) 
 {
   struct thread *cur = thread_current ();
+  enum intr_level old_level;
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  ASSERT(!list_empty(&cur->lock_hold));
+
+  old_level = intr_disable ();
   /* remove lock from thread lock_hold list */
   list_remove(&lock->lockelem);
 
@@ -286,6 +294,7 @@ lock_release (struct lock *lock)
 		  cur->priority = cur->orig_priority;
 	  }
   }
+  intr_set_level (old_level);
   lock->holder = NULL;
   /* reset priority of lock to below min value */
   lock->priority_given = -1;

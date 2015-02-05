@@ -212,6 +212,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  thread_run_max(thread_current ());
+
   return tid;
 }
 
@@ -370,30 +372,40 @@ void thread_donate_priority(struct lock *lock, int don_prio)
 	struct thread *give = NULL;
 	struct lock *lock_hold = lock->holder->lock_wait;
 
-	receive->priority = don_prio;
-	lock->priority_given = don_prio;
-	/* check if need to do nested donation */
-	if(lock_hold != NULL)
+	if(receive != NULL)
 	{
-		while(lock_hold != NULL && depth < MAX_DEPTH)
+
+		receive->priority = don_prio;
+		if(lock->priority_given < don_prio)
 		{
-			depth++;
-			give = receive;
-			receive = lock_hold->holder;
-			if(give->priority > receive->priority)
+			lock->priority_given = don_prio;
+		}
+		/* check if need to do nested donation */
+		if(lock_hold != NULL)
+		{
+			while(lock_hold != NULL && depth < MAX_DEPTH)
 			{
-				receive->priority = give->priority;
-				lock_hold->priority_given = give->priority;
-				lock_hold = receive->lock_wait;
-			}
-			else
-			{
-				lock_hold = NULL;
+				depth++;
+				give = receive;
+				receive = lock_hold->holder;
+				if(give->priority > receive->priority)
+				{
+					receive->priority = give->priority;
+					if(lock_hold->priority_given < give->priority)
+					{
+						lock_hold->priority_given = give->priority;
+					}
+					lock_hold = receive->lock_wait;
+				}
+				else
+				{
+					lock_hold = NULL;
+				}
 			}
 		}
+		/* sort ready list with updated priorites */
+		list_sort(&ready_list, (list_less_func *) &priority_cmp, NULL);
 	}
-	/* sort ready list with updated priorites */
-	list_sort(&ready_list, (list_less_func *) &priority_cmp, NULL);
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
