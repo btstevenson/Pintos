@@ -319,6 +319,26 @@ struct semaphore_elem
     struct semaphore semaphore;         /* This semaphore. */
   };
 
+bool
+cond_sort_list (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	bool found = false;
+	struct semaphore *sema_large = (&list_entry (a,
+            struct semaphore_elem, elem)->semaphore);
+	struct semaphore *sema_small = (&list_entry (b,
+            struct semaphore_elem, elem)->semaphore);
+	struct thread *thread_large = list_entry(list_front(&sema_large->waiters),
+				struct thread, elem);
+	struct thread *thread_small = list_entry(list_front(&sema_small->waiters),
+				struct thread, elem);
+
+	if(thread_large->priority > thread_small->priority)
+	{
+		found = true;
+	}
+	return found;
+}
+
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
    code to receive the signal and act upon it. */
@@ -383,8 +403,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) 
+  {
+	list_sort(&cond->waiters, (list_less_func *) &cond_sort_list, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -399,6 +422,10 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
 
+  if(!list_empty(&cond->waiters))
+  {
+	  list_sort(&cond->waiters, (list_less_func *) &cond_sort_list, NULL);
+  }
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
