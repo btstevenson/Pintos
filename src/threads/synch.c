@@ -32,6 +32,14 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+/* prototype for cond_sort_list */
+bool cond_sort_list(const struct list_elem *,
+			const struct list_elem *, void *aux UNUSED);
+
+/* prototype for lock_sort_list */
+bool lock_sort_list(const struct list_elem *,
+			const struct list_elem *, void *);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -49,15 +57,6 @@ sema_init (struct semaphore *sema, unsigned value)
   sema->value = value;
   list_init (&sema->waiters);
 }
-
-/***********************************************
-* Will need to modify sema to be able to handle
-* the tick count for the waiting threads to be 
-* evaluated against the threads waiting value of 
-* ticks. 
-*
-*
-************************************************/
 
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
    to become positive and then atomically decrements it.
@@ -219,7 +218,6 @@ lock_acquire (struct lock *lock)
   /* make sure this is not first time in lock */
   if(lock->holder != NULL)
   {
-	//  printf("%s is entering donate\n", thread_current ()->name);
 	  /* check if donation is needed */
   	  if(lock->holder->priority < thread_current ()->priority)
   	  {
@@ -227,15 +225,14 @@ lock_acquire (struct lock *lock)
 	  	  old_level = intr_disable ();
 	  	  thread_donate_priority(lock, thread_current ()->priority);
 	  	  intr_set_level (old_level);
-//	  	  printf("%s now has priority %d\n", lock->holder->name, lock->holder->priority);
   	  }
-  	  /* thread is blocked by this lock add */
+  	  /* thread is blocked by this lock */
   	  thread_current ()->lock_wait = lock;
   }
   sema_down (&lock->semaphore);
+  /* set lock_wait to NULL as thread is not waiting on lock */
+  thread_current ()->lock_wait = NULL;
   lock->holder = thread_current ();
- // printf("%s has lock, priority %d\n", thread_current ()->name,
-		//  	  thread_get_priority ());
   list_push_back(&thread_current ()->lock_hold, &lock->lockelem);
 }
 
@@ -268,13 +265,11 @@ void
 lock_release (struct lock *lock) 
 {
   struct thread *cur = thread_current ();
-  enum intr_level old_level;
+
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
   ASSERT(!list_empty(&cur->lock_hold));
 
-  old_level = intr_disable ();
   /* remove lock from thread lock_hold list */
   list_remove(&lock->lockelem);
 
@@ -284,7 +279,8 @@ lock_release (struct lock *lock)
 	  if(!list_empty(&cur->lock_hold))
 	  {
 		  /* sort list to get highest priority for remaining locks owned */
-		  list_sort(&cur->lock_hold, (list_less_func *) &sort_lock_list, NULL);
+		  list_sort(&cur->lock_hold, (list_less_func *) &lock_sort_list, NULL);
+		  /* get priority from highest priority lock */
 		  cur->priority = (list_entry(list_front(&cur->lock_hold), struct lock,
 				  	  	  lockelem))->priority_given;
 	  }
@@ -294,7 +290,6 @@ lock_release (struct lock *lock)
 		  cur->priority = cur->orig_priority;
 	  }
   }
-  intr_set_level (old_level);
   lock->holder = NULL;
   /* reset priority of lock to below min value */
   lock->priority_given = -1;
@@ -311,7 +306,7 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
@@ -319,25 +314,6 @@ struct semaphore_elem
     struct semaphore semaphore;         /* This semaphore. */
   };
 
-bool
-cond_sort_list (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
-{
-	bool found = false;
-	struct semaphore *sema_large = (&list_entry (a,
-            struct semaphore_elem, elem)->semaphore);
-	struct semaphore *sema_small = (&list_entry (b,
-            struct semaphore_elem, elem)->semaphore);
-	struct thread *thread_large = list_entry(list_front(&sema_large->waiters),
-				struct thread, elem);
-	struct thread *thread_small = list_entry(list_front(&sema_small->waiters),
-				struct thread, elem);
-
-	if(thread_large->priority > thread_small->priority)
-	{
-		found = true;
-	}
-	return found;
-}
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
@@ -430,8 +406,17 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     cond_signal (cond, lock);
 }
 
+/*****************************************************************
+ * Function: lock_sort_list
+ * Programmer: Brandon Stevenson
+ * Date: 1/31/2015
+ * Input: const struct list_elem *
+ * Output: bool
+ * Purpose: sort the lock_hold list for a thread using the
+ * 			priority given to the lock
+ ****************************************************************/
 bool
-sort_lock_list(const struct list_elem *a,
+lock_sort_list(const struct list_elem *a,
 					const struct list_elem *b,
 					void *aux  UNUSED)
 {
@@ -439,6 +424,39 @@ sort_lock_list(const struct list_elem *a,
 	struct lock *la = list_entry(a, struct lock, lockelem);
 	struct lock *lb = list_entry(b, struct lock, lockelem);
 	if(la->priority_given > lb->priority_given)
+	{
+		found = true;
+	}
+	return found;
+}
+
+/*****************************************************************
+ * Function: cond_sort_list
+ * Programmer: Brandon Stevenson
+ * Date: 2/5/2015
+ * Input: const struct list_elem *
+ * Output: bool
+ * Purpose: Sorts the condition list by semaphore using the
+ * 			highest priority thread of each semaphore
+ ****************************************************************/
+bool
+cond_sort_list (const struct list_elem *a, const struct list_elem *b,
+				void *aux UNUSED)
+{
+	struct thread *thread_lrg = NULL;
+	struct thread *thread_sml = NULL;
+	bool found = false;
+
+	struct semaphore *sema_lrg = (&list_entry (a,
+            					  struct semaphore_elem, elem)->semaphore);
+	struct semaphore *sema_sml = (&list_entry (b,
+            					  struct semaphore_elem, elem)->semaphore);
+	 thread_lrg = list_entry(list_front(&sema_lrg->waiters),
+								struct thread, elem);
+	 thread_sml = list_entry(list_front(&sema_sml->waiters),
+								struct thread, elem);
+
+	if(thread_lrg->priority > thread_sml->priority)
 	{
 		found = true;
 	}

@@ -90,7 +90,7 @@ struct thread
     int64_t wait_tick;					/* added variable to track ticks */
     int priority;                       /* Priority. */
     int orig_priority;
-    struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem allelem;           /* List element for all_list */
     struct list_elem waitelem;			/* List element for wait_list */
 
     /* Shared between thread.c and synch.c. */

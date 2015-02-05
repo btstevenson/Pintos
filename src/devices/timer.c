@@ -21,7 +21,7 @@
 static struct list wait_list;
 
 /* semaphore to control access to wait_list */
-static struct semaphore wait_lock;
+static struct semaphore wait_sema;
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
@@ -41,7 +41,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
-  sema_init(&wait_lock, 1);
+  sema_init(&wait_sema, 1);
   list_init(&wait_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
@@ -102,21 +102,21 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  if(sema_try_down(&wait_lock))
+  if(sema_try_down(&wait_sema))
   {
 	  /* disable interrupts as wait_list is shared */
 	  old_level = intr_disable ();
 	  temp_thread->wait_tick = ticks_begin + ticks;
 	  list_insert_ordered(&wait_list, &temp_thread->waitelem,
 			  	  	  (list_less_func *) &tick_cmp, NULL);
-	  sema_up(&wait_lock);
+	  sema_up(&wait_sema);
 	  thread_block();
 	  intr_set_level (old_level);
   }
   else
   {
 	  /* put thread on wait_lock list of waiters */
-	  sema_down(&wait_lock);
+	  sema_down(&wait_sema);
   }
 }
 
@@ -201,7 +201,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   while(!list_empty(&wait_list))
   {
 	  old_level = intr_disable ();
-	  temp_thread = list_entry(list_begin(&wait_list), struct thread, waitelem);
+	  temp_thread = list_entry(list_begin(&wait_list),
+			  	  	  	  	   struct thread, waitelem);
 	  intr_set_level (old_level);
 	  /* since list is sorted no need to check rest */
 	  if (temp_thread->wait_tick > ticks)
@@ -210,7 +211,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 	  }
 	  old_level = intr_disable ();
 	  thread_unblock (list_entry (list_pop_front (&wait_list),
-		                        struct thread, waitelem));
+		              struct thread, waitelem));
 	  intr_set_level (old_level);
   }
   thread_tick ();

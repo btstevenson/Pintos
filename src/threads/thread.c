@@ -20,6 +20,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* max depth for nesting donations */
 #define MAX_DEPTH 8
 
 /* List of processes in THREAD_READY state, that is, processes
@@ -331,16 +332,28 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 }
-/* check if thread needs to yield */
+
+/*****************************************************************
+ * Function: thread_run_max
+ * Programmer: Brandon Stevenson
+ * Date: 2/1/2015
+ * Input: struct thread *
+ * Output: none
+ * Purpose: checks if thread needs to yield due to not having
+ * 			highest priority or being over its time slice
+ ****************************************************************/
 void thread_run_max(struct thread *cur)
 {
 	enum intr_level old_level;
 	struct thread *temp_thread;
 
+	/* check if any threads on ready list */
 	if(!list_empty(&ready_list))
 	{
+		/* disable interrupts while accessing shared list */
 		old_level = intr_disable ();
-		temp_thread = list_entry(list_front(&ready_list), struct thread, elem);
+		temp_thread = list_entry(list_front(&ready_list),
+								struct thread, elem);
 		intr_set_level(old_level);
 		/* checking if thread is over time slice */
 		if(intr_context())
@@ -364,7 +377,16 @@ void thread_run_max(struct thread *cur)
 		}
 	}
 }
-/* donate priority to lock holder */
+
+/*****************************************************************
+ * Function: thread_donate_priority
+ * Programmer: Brandon Stevenson
+ * Date:  2/1/2015
+ * Input: struct lock *, int
+ * Output: none
+ * Purpose: donate priority to lock. if the current lock is blocked
+ *          by another lock, nested donation occurs up to 8 times.
+ ****************************************************************/
 void thread_donate_priority(struct lock *lock, int don_prio)
 {
 	uint8_t depth = 0;
@@ -372,10 +394,11 @@ void thread_donate_priority(struct lock *lock, int don_prio)
 	struct thread *give = NULL;
 	struct lock *lock_hold = lock->holder->lock_wait;
 
+	/* sanity check to make sure lock is held */
 	if(receive != NULL)
 	{
-
 		receive->priority = don_prio;
+		/* check if lock has a lower priority */
 		if(lock->priority_given < don_prio)
 		{
 			lock->priority_given = don_prio;
@@ -431,7 +454,11 @@ thread_set_priority (int new_priority)
 {
   struct thread *cur = thread_current ();
 
+  /* change original priority to new priority */
   cur->orig_priority = new_priority;
+
+  /* check if new priority is higher and if list is lock_hold
+   * is empty */
   if(new_priority > cur->priority)
   {
 	  cur->priority = new_priority;
@@ -441,7 +468,6 @@ thread_set_priority (int new_priority)
 	  cur->priority = new_priority;
   }
   thread_run_max(cur);
-  //printf("%s set its priority\n", cur->name);
 }
 
 /* Returns the current thread's priority. */
@@ -685,7 +711,15 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/* added function, compares ticks of waiting threads */
+/*****************************************************************
+ * Function: tick_cmp
+ * Programmer: Brandon Stevenson
+ * Date: 1/29/2015
+ * Input: const struct list_elem
+ * Output: bool
+ * Purpose: sort list by wait_tick left. this means smallest will
+ * 			be first. used for wait_list
+ ****************************************************************/
 bool
 tick_cmp (const struct list_elem *a,
 		  const struct list_elem *b,
@@ -701,7 +735,15 @@ tick_cmp (const struct list_elem *a,
 	}
 	return found;
 }
-/* added function, compares priorities of threads */
+
+/*****************************************************************
+ * Function: priority_cmp
+ * Programmer: Brandon Stevenson
+ * Date: 1/29/2015
+ * Input: const struct list_elem *
+ * Output: bool
+ * Purpose: sorts list by thread priority, used in ready_list
+ ****************************************************************/
 bool
 priority_cmp (const struct list_elem *a,
 			  const struct list_elem *b,
