@@ -55,7 +55,7 @@ process_execute (const char *file_name)
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
     for (i = 0; i < argc; i++) {
         sizeLimit-= strlen(argv[i]);
-        strlcpy (fn_copy, argv[i], 40000);
+        strlcpy (fn_copy, argv[i], 4000);
     }
     if (sizeLimit > 0) {
         // argument size is under the limit
