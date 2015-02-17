@@ -33,6 +33,7 @@ process_execute (const char *file_name)
     char* parsedPtr = file_name;
     char* token;
     int argc = 0;
+    const char* argv[100];
     /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
     fn_copy = palloc_get_page (0);
@@ -45,10 +46,12 @@ process_execute (const char *file_name)
     // also parse the argc count and pass that to page fn_copy
     
     while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
+        argv[argc] = token;
         argc++;
         printf("token: %s\n", token);
     };
-    printf("argc is %d", argc);
+    printf("argc is %d\n", argc);
+    printf("argv[2] = %s\n", argv[2]);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
