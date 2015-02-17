@@ -32,7 +32,7 @@ process_execute (const char *file_name)
     tid_t tid;
     char* parsedPtr = file_name;
     char* token;
-    int argc = 0;
+    int argc = 0, int i = 0;
     int sizeLimit = 4000; // argument size limit of 4KB
     const char* argv[100];
     /* Make a copy of FILE_NAME.
@@ -52,7 +52,7 @@ process_execute (const char *file_name)
         printf("token: %s\n", token);
     };
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
-    for (int i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++) {
         sizeLimit-= strlen(argv[i]);
     }
     if (sizeLimit > 0) {
