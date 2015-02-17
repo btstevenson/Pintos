@@ -41,7 +41,7 @@ process_execute (const char *file_name)
     // put all arguments into fncopy which is the stack of the new thread
     // parse file name to get name of process and arguments ex 'cat filename.txt' by splitting  at spaces
     // put these into an array and then load that array into the fn_copy page from last index to first.
-    // also parse the argc count and pass that to page fn_copyd
+    // also parse the argc count and pass that to page fn_copy
     
     while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
         printf("token: %s\n", token);
