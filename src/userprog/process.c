@@ -32,7 +32,7 @@ process_execute (const char *file_name)
     tid_t tid;
     char* parsedPtr = file_name;
     char* token;
-    int argc = 2;
+    int argc = 0;
     /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
     fn_copy = palloc_get_page (0);
