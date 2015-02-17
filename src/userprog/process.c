@@ -28,15 +28,24 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
-  tid_t tid;
-
-  /* Make a copy of FILE_NAME.
+    char *fn_copy;
+    tid_t tid;
+    char* parsedPtr = file_name;
+    char* token;
+    /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+    fn_copy = palloc_get_page (0);
+    if (fn_copy == NULL)
+        return TID_ERROR;
+    //strlcpy (fn_copy, file_name, PGSIZE); replace
+    // put all arguments into fncopy which is the stack of the new thread
+    // parse file name to get name of process and arguments ex 'cat filename.txt' by splitting  at spaces
+    // put these into an array and then load that array into the fn_copy page from last index to first.
+    // also parse the argc count and pass that to page fn_copy
+    
+    while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
+        printf("token: %s\n", token);
+    };
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
