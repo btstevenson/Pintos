@@ -33,6 +33,7 @@ process_execute (const char *file_name)
     char* parsedPtr = file_name;
     char* token;
     int argc = 0;
+    int sizeLimit = 4000; // argument size limit of 4KB
     const char* argv[100];
     /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -50,9 +51,21 @@ process_execute (const char *file_name)
         argc++;
         printf("token: %s\n", token);
     };
-    printf("argc is %d\n", argc);
-    printf("argv[2] = %s\n", argv[2]);
+    // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
+    for (int i = 0; i < argc; i++) {
+        sizeLimit-= strlen(argv[i]);
+    }
+    if (sizeLimit > 0) {
+        // argument size is under the limit
+        printf("Arg size is %d bytes under the limit", sizeLimit);
+        printf("argc is %d\n", argc);
+        printf("argv[2] = %s\n", argv[2]);
 
+    }
+    else{
+        // argument size is too big return error.
+    }
+    
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
