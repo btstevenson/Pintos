@@ -32,7 +32,7 @@ process_execute (const char *file_name)
     tid_t tid;
     char* parsedPtr = file_name;
     char* token;
-    int argc = 0
+    int argc = 0;
     int i = 0;
     int sizeLimit = 4000; // argument size limit of 4KB
     const char* argv[100];
