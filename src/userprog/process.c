@@ -55,15 +55,15 @@ process_execute (const char *file_name)
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
     for (i = 0; i < argc; i++) {
         sizeLimit-= strlen(argv[i]);
-        strlcpy (fn_copy, argv[i], 4000);
     }
     if (sizeLimit > 0) {
         // argument size is under the limit
         printf("Arg size is %d bytes under the limit\n", sizeLimit);
         printf("argc is %d\n", argc);
         printf("argv[2] = %s\n", argv[2]);
-        // push the argv array and argc variable onto the stack
+        // push the argv array and argc variable onto the page file
         // using asm push and call
+        // it will get sent to a new thread that calls start process and then calls setup stack passing it the stack pointer for the thread.
         
 
     }
