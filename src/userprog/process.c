@@ -59,7 +59,7 @@ process_execute (const char *file_name)
     }
     if (sizeLimit > 0) {
         // argument size is under the limit
-        printf("Arg size is %d bytes under the limit", sizeLimit);
+        printf("Arg size is %d bytes under the limit\n", sizeLimit);
         printf("argc is %d\n", argc);
         printf("argv[2] = %s\n", argv[2]);
         // push the argv array and argc variable onto the stack
@@ -470,7 +470,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
