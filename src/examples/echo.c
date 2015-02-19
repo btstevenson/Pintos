@@ -4,11 +4,16 @@
 int
 main (int argc, char **argv)
 {
-  int i;
-
-  for (i = 0; i < argc; i++)
-    printf ("%s ", argv[i]);
-  printf ("\n");
-
-  return EXIT_SUCCESS;
+    int i;
+    // remove this
+    printf("echo ran before print");
+    
+    
+    // end
+    
+    for (i = 0; i < argc; i++)
+        printf ("%s ", argv[i]);
+    printf ("\n");
+    
+    return EXIT_SUCCESS;
 }

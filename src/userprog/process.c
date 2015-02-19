@@ -41,7 +41,7 @@ process_execute (const char *file_name)
     fn_copy = palloc_get_page (0);
     if (fn_copy == NULL)
         return TID_ERROR;
-    //strlcpy (fn_copy, file_name, PGSIZE); replace
+    //strlcpy (fn_copy, file_name, PGSIZE); replace this line
     // put all arguments into fncopy which is the stack of the new thread
     // parse file name to get name of process and arguments ex 'cat filename.txt' by splitting  at spaces
     // put these into an array and then load that array into the fn_copy page from last index to first.
@@ -52,10 +52,11 @@ process_execute (const char *file_name)
         argc++;
         printf("token: %s\n", token);
     };
+    
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
+    
     for (i = 0; i < argc; i++) {
         sizeLimit-= strlen(argv[i]);
-        strlcpy (fn_copy, argv[i], PGSIZE);
     }
     if (sizeLimit > 0) {
         // argument size is under the limit
