@@ -68,7 +68,7 @@ process_execute (const char *file_name)
         printf("backwards order\n");
         for (i = argc-1; i >= 0 ; i--) {
             
-            asm volatile ("push (argv[2])");
+            asm volatile ("push argv");
         }
         
         
