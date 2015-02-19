@@ -41,7 +41,7 @@ process_execute (const char *file_name)
     fn_copy = palloc_get_page (0);
     if (fn_copy == NULL)
         return TID_ERROR;
-    strlcpy (fn_copy, file_name, PGSIZE); replace this line
+    strlcpy (fn_copy, file_name, PGSIZE); //replace this line
     // put all arguments into fncopy which is the stack of the new thread
     // parse file name to get name of process and arguments ex 'cat filename.txt' by splitting  at spaces
     // put these into an array and then load that array into the fn_copy page from last index to first.
