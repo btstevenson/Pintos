@@ -1,0 +1,1 @@
+remove excess code from echo.c in examples

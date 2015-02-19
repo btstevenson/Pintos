@@ -54,7 +54,7 @@ process_execute (const char *file_name)
     };
     
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
-    
+    sizeLimit -= sizeof(argc);
     for (i = 0; i < argc; i++) {
         sizeLimit-= strlen(argv[i]);
     }
