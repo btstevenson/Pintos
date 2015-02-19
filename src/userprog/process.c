@@ -71,23 +71,25 @@ process_execute (const char *file_name)
             // push null terminated strings onto stack then a 0 at the end
             asm volatile ("push %0" : "=r" (argv[i]));
         }
-        /*
+        
         // push word-align onto stack
         uint8_t wAlign = 0;
-        asm volatile ("push wAlign");
+        asm volatile ("push %0" :"=r" (wAlign));
         
-        
-        for (i = argc-1; i >= 0 ; i--) {
+        // starts at arc because we add argv[argc] which must always be null
+        for (i = argc; i >= 0 ; i--) {
             // push adress of strings onto stack starting with a 0 in argv[argc]
-            asm volatile ("push argv");
+            asm volatile ("push %0" : "=r" (*argv[i]));
         }
         
+        
         // push argv array address on the stack
-        asm volatile ("push argv");
+        asm volatile ("push %0" : "=r" (*argv));
         
         //push argc variable on the stack
-        asm volatile ("push argc");
+        asm volatile ("push %0" : "=r" (argc));
         
+        /*
         // push fake return adress onto stack
         void(*)() returnAddress = 0;
         asm volatile ("push returnAdress");
