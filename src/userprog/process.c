@@ -66,11 +66,13 @@ process_execute (const char *file_name)
         // push the argv array and argc variable onto the page file
         // using asm push and call
         // it will get sent to a new thread that calls start process and then calls setup stack passing it the stack pointer for the thread.
+        printf(PHYS_BASE
         
 
     }
     else{
         // argument size is too big return error.
+        printf("Passed Arguments Overflow Error\nProcess not started.");
     }
     
   /* Create a new thread to execute FILE_NAME. */
@@ -85,6 +87,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+    printf("start_process ran");
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
