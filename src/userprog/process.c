@@ -51,7 +51,8 @@ process_execute (const char *file_name)
         argv[argc] = token;
         argc++;
         printf("token: %s\n", token);
-    };
+    }
+    argv[argc] = "\0"; // add null terminator in argv[arc]
     
     // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
     sizeLimit -= sizeof(argc);
@@ -67,12 +68,30 @@ process_execute (const char *file_name)
         // using asm push and call
         printf("backwards order\n");
         for (i = argc-1; i >= 0 ; i--) {
-            
+            // push null terminated strings onto stack then a 0 at the end
+            asm volatile ("push %0" : "=r" (argv[i]));
+        }
+        /*
+        // push word-align onto stack
+        uint8_t wAlign = 0;
+        asm volatile ("push wAlign");
+        
+        
+        for (i = argc-1; i >= 0 ; i--) {
+            // push adress of strings onto stack starting with a 0 in argv[argc]
             asm volatile ("push argv");
         }
         
+        // push argv array address on the stack
+        asm volatile ("push argv");
         
+        //push argc variable on the stack
+        asm volatile ("push argc");
         
+        // push fake return adress onto stack
+        void(*)() returnAddress = 0;
+        asm volatile ("push returnAdress");
+         */
 
     }
     else{
