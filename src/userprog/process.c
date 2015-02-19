@@ -67,7 +67,7 @@ process_execute (const char *file_name)
         // using asm push and call
         printf("backwards order\n");
         for (i = argc-1; i >= 0 ; i--) {
-            asm(push argv[i]);
+            asm("push argv[i]");
         }
         
         
