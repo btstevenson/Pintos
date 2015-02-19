@@ -66,7 +66,7 @@ process_execute (const char *file_name)
         // push the argv array and argc variable onto the page file
         // using asm push and call
         // it will get sent to a new thread that calls start process and then calls setup stack passing it the stack pointer for the thread.
-        printf(PHYS_BASE
+        printf("phya base is %d",PHYS_BASE);
         
 
     }
