@@ -73,7 +73,7 @@ process_execute (const char *file_name)
         }
         
         // push word-align onto stack
-        uint8_t wAlign = 0;
+        uint16_t wAlign = 0;
         asm volatile ("push %0" :"=r" (wAlign));
         
         // starts at arc because we add argv[argc] which must always be null
