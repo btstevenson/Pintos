@@ -35,7 +35,7 @@ process_execute (const char *file_name)
     int argc = 0;
     int i = 0;
     int sizeLimit = 4000; // argument size limit of 4KB
-    const char* argv[100];
+    const char** argv;
     /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
     fn_copy = palloc_get_page (0);
@@ -77,9 +77,9 @@ process_execute (const char *file_name)
         asm volatile ("push %0" :"=r" (wAlign));
         
         // starts at arc because we add argv[argc] which must always be null
-        for (i = argc; i >= 0 ; i--) {
+        for (i = 1; i <= argc ; i++) {
             // push adress of strings onto stack starting with a 0 in argv[argc]
-            asm volatile ("push %0" : "=r" (*argv[i]));
+            asm volatile ("push %0" : "=r" (PHYS_BASE - (4 * i));
         }
         
         
@@ -89,11 +89,11 @@ process_execute (const char *file_name)
         //push argc variable on the stack
         asm volatile ("push %0" : "=r" (argc));
         
-        /*
+        
         // push fake return adress onto stack
-        void(*)() returnAddress = 0;
-        asm volatile ("push returnAdress");
-         */
+        void(*returnAddress)() = NULL;
+        asm volatile ("push %0" : "=R" (returnAddress));
+         
 
     }
     else{
