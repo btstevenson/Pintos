@@ -82,7 +82,7 @@ process_execute (const char *file_name)
             
             int tmp = PHYS_BASE - (4 * i);
             
-            asm volatile ("push %0" : "=r" (PHYS_BASE - (4 * i));
+            asm volatile ("push %0" : "=r" (tmp));
         }
         
         
