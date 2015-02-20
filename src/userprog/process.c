@@ -79,6 +79,9 @@ process_execute (const char *file_name)
         // starts at arc because we add argv[argc] which must always be null
         for (i = 1; i <= argc ; i++) {
             // push adress of strings onto stack starting with a 0 in argv[argc]
+            
+            int tmp = PHYS_BASE - (4 * i);
+            
             asm volatile ("push %0" : "=r" (PHYS_BASE - (4 * i));
         }
         
