@@ -1,0 +1,136 @@
++--------------------------+
+|		CS 153              |
+| PROJECT 2: USER PROGRAMS	|
+| 	   DESIGN DOCUMENT     	|
++--------------------------+
+
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Trent Callan <tcall002@ucr.edu>
+Brandon Stevenson <bstev002@ucr.edu>
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+ARGUMENT PASSING
+================
+
+---- DATA STRUCTURES ----
+
+>> A1: struct exec_helper{
+    const char* fileName; // holds program name and command line argumnts
+    semaphore lock; // used to protect access to fileName
+    bool loadedCorrectly; // determines if program is loaded successfully
+}
+
+---- ALGORITHMS ----
+
+>> A2: We implement argument passing by taking in the command from the command line stored in file_name in process_exec() and splitting it up into tokens by spaces using strtok_r(). We then use the struct defined in A1 to store file_name into fileName in the struct so that we can pass these tokens to load() and setup_stack() where they will be needed. In setup_stack() we setup the stack where we push the values of argv[argc -1] to argv[0] onto the stack using the push command. We push in this order because the stack must be setup from top to bottom and it will execute from bottom to top. We then push a zero uint8_t to specify word_align. We then push the addresses of the elements of argv from argv[argc] to argv[0] onto the stack in this order for the same reason as above. We then push the address of the argv array itself onto the stack. We then push argc onto the stack below argv. Finally we push a fake return address, of type void(*)(), onto the stack and the stack pointer is initialized to the address of the fake return address. We avoid over-flowing the stack page by keeping track of the sizes of the argv array and argc constant. The cummulative size of these along with the size of the pointers to their addresses and the fake return address pointer must be less than 4kb.
+
+---- RATIONALE ----
+
+>> A3: Pintos uses strtok_r() over strtok() because the reentrant version strktok_r() is thread safe which eliminates the race conditions for shared resources between two calls of strtok().
+
+>> A4: Two advantages of the Unix approach is that the shell handles the split of the arguments negating the need for you to write the strtok_r() lines into your program. The shell handles the splitting into tokens for you so every program will recieve a similaarly formatted string of arguments. The second advantage of the Unix implementation is that the shell handles filename extensions. For example, if the command cat *.txt was entered in the command line Unix will change the *.txt to the name of every txt file in the directory and call the executable on each file. In Pintos, the *.txt will be sent into the program as an argument and it would be up to the specific program called to convert the *.txt into the correct file names.
+    The advantages here are that the spiltting of the command line command and the filename extensions are
+    handled befre your program so that every program that runs in Unix doesn't have to implement how to
+    handle the parsing of the command or how to expand the filename operators into the correct names.
+
+SYSTEM CALLS
+============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+
+SURVEY QUESTIONS
+================
+
+Answering these questions is optional, but it will help us improve the
+course in future quarters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the quarter.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future quarters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future quarters or the remaining projects?
+
+>> Any other comments?
