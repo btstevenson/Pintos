@@ -16,6 +16,8 @@ Brandon Stevenson <bstev002@ucr.edu>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
+		Design has not been fully tested, some data structures and 		variable changes may occur.
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
@@ -52,15 +54,43 @@ SYSTEM CALLS
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+	
+thread.h
+	
+  struct thread
+  {	
+	// used for file sys calls
+	struct list file_list;
+	int fd;
+
+	//used for exec and wait sys calls
+	struct list child_list;
+	tid_t parent;
+
+	// used for putting child process in parent list
+	struct child_process* cp;
+  };
+
+syscall.c
+// struct used to hold files used by processes
+struct process_file {
+  struct file *file;
+  int fd;
+  struct list_elem elem;
+};
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+	
+	Each process has a file list that the current process has open. The 	file descriptor along with the file is placed into the file struct 	and added to the process list.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+	First, validate the address for both the kernel and user are 	correct. Once addresses are verified, copy the source information 	into the destination address.
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +99,12 @@ SYSTEM CALLS
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+	Assuming a byte is accessed each time, then 4096 calls would be 	needed to read a full page into memory. If only 2 bytes need to be 	read, then two calls would be needed. This can be improved by 	reading multiple bytes at a time.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+	Parent checks to make sure the wait pid is an actual child of it, 	and then checks to see if it is currently not already waiting for 	it, then waits for the child using a barrier call in synch.h
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +120,18 @@ SYSTEM CALLS
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+	Each time a system call is used, the address is verified to be 	correct in the system call requested. When needed the buffer is 	also checked to be a valid buffer. When errors occur, the list 	functionality allows resources to be removed in a safe manner.
+
+	An example of error checking is when an invalid pointer is passed 	to the system call write. The address is a valid user address but 	testing the write of the address fails causing a page fault. When 	the fault occurs, the process causing the fault is terminated by 	freeing all resources associated with that process.
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+	
+	The return call must not happen before the load status of the exec 	is received. This is accomplished by having the exec call wait to 	return by using the barrier call which causes no optimizations to 	occur. This ensures the return does not happen until a load is 	complete or failed.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -100,16 +140,24 @@ SYSTEM CALLS
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+	When P calls wait on C, the parent will go through a series of 	checks using the child struct that holds the child's pertinent 	information. Parent must be sure that the child is alive and the 	parent is not already waiting for that child. If parent terminates 	before waiting on C, the child is not dependent on the parent. If C 	has exited before the parent calls wait, this will be found during 	the checks.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+	
+	The chosen method allows for multiple checks to occur without 	clouding the main code with error checking.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+	Leverage existing code from the filesys, and track open files for 	each process using a list allows for files to me managed 	effieciently.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+	
+	Did not change from the default method.
 
 SURVEY QUESTIONS
 ================
