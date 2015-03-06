@@ -40,15 +40,15 @@ process_execute (const char *file_name)
 {
     tid_t tid;
     const char* thread_name;
-    struct exec_helper helper;
+    struct exec_helper* helper;
     char* parsedPtr = file_name;
     char* token;
     int argc = 0;
     char** argv;
     char** args;
     
-    helper.file_name = file_name;
-    sema_init(helper.semaLock, 0);
+    helper->file_name = file_name;
+    sema_init(helper->semaLock, 0);
     
     while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
         argv[argc] = token;
@@ -67,11 +67,13 @@ process_execute (const char *file_name)
     tid = thread_create (thread_name, PRI_DEFAULT, start_process, &helper);
     if (tid != TID_ERROR){
         // down semaLock for loading
-        sema_down(helper.semaLock);
-        
+        sema_down(helper->semaLock);
+        if (helper->loaded) {
+            
+        }
         // if load is succesfull then set bool and add new child to the list of this thread's children (mind your list_elems)... we need to check this list in process wait, when children are done, process wait can finish... see process wait...
         
-        // else tid_error
+        // else TID_ERROR
     }
     return tid;
 }
@@ -79,7 +81,7 @@ process_execute (const char *file_name)
 /* A thread function that loads a user process and starts it
  running. */
 static void
-start_process (void *file_name_)
+start_process (void *helper)
 {
     char *file_name = file_name_;
     struct thread *curr = thread_current();
@@ -87,6 +89,9 @@ start_process (void *file_name_)
     bool success;
     
     // how to access this void struct helper
+    (struct exec_helper *) helper->loaded = false;
+    
+    
     
     /* Initialize interrupt frame and load executable. */
     memset (&if_, 0, sizeof if_);
