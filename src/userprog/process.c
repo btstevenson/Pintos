@@ -524,7 +524,6 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     size_t ofs = PGSIZE; //##Used in push!
     char * const null = NULL; //##Used for pushing nulls
     char *ptr; //##strtok_r usage
-    char* const null = NULL;
     char* parsedPtr = cmd_line;
     char* token;
     int i = 0;
@@ -532,6 +531,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     char** argv;
     char** args;
     int argc = 0;
+    bool success = true;
     
     // parse
     // parse executable name
@@ -624,6 +624,8 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     // set the stack pointer
     
     
+    return success;
+    
 }
 
 
@@ -635,8 +637,8 @@ static bool
 setup_stack (void **esp, const char* cmd_line)
 {
     uint8_t *kpage;
+    uint8_t *upage;
     bool success = false;
-    size_t ofs = PGSIZE;
     
     
     kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -649,7 +651,7 @@ setup_stack (void **esp, const char* cmd_line)
      palloc_free_page (kpage);
      }
     
-    setup_stack_helper(cmd_line, kpage, <#uint8_t *upage#>, esp);
+    setup_stack_helper(cmd_line, kpage, upage, esp);
     
     return success;
 }
