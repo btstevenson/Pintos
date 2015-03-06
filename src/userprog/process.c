@@ -67,7 +67,7 @@ process_execute (const char *file_name)
     tid = thread_create (thread_name, PRI_DEFAULT, start_process, &helper);
     if (tid != TID_ERROR){
         // down semaLock for loading
-        sema_down(helper->semaLock);
+        //sema_down(helper->semaLock);
         if (helper->loaded) {
             
         }
