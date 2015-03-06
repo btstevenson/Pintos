@@ -83,7 +83,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *helper)
 {
-    struct exec_helper *helpLoad = (struct exec_helper *) helper
+    struct exec_helper *helpLoad = (struct exec_helper *) helper;
     char *file_name = helpLoad->file_name;
     struct thread *curr = thread_current();
     struct intr_frame if_;
