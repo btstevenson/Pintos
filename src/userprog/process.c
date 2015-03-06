@@ -41,9 +41,29 @@ process_execute (const char *file_name)
     tid_t tid;
     const char* thread_name;
     struct exec_helper helper;
+    char* parsedPtr = file_name;
+    char* token;
+    int argc = 0;
+    int i = 0;
+    int sizeLimit = 4000;
+    char** argv;
+    char** args;
     
-    
+    helper.file_name = file_name;
     sema_init(helper.semaLock, 0);
+    
+    while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
+        argv[argc] = token;
+        if (argc != 0) {
+            args[argc - 1] = token;
+        }
+        argc++;
+        printf("token: %s\n", token);
+    }
+    args[argc - 1] = "\0";
+    argv[argc] = "\0"; // add null terminator in argv[arc]
+    
+    thread_name = argv[0];
     
     /* Create a new thread to execute THREAD_NAME. */
     tid = thread_create (thread_name, PRI_DEFAULT, start_process, &helper);
@@ -233,7 +253,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
     int sizeLimit = 4000;
     char** argv;
     char** args;
-    int argc = 0;
     struct Elf32_Ehdr ehdr;
     struct file *file = NULL;
     off_t file_ofs;
