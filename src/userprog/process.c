@@ -257,7 +257,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
     struct file *file = NULL;
     off_t file_ofs;
     bool success = false;
-    int i;
     
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create ();
@@ -533,7 +532,6 @@ setup_stack (void **esp, char* cmd_line)
     char* const null = NULL;
     char* parsedPtr = cmd_line;
     char* token;
-    int argc = 0;
     int i = 0;
     int sizeLimit = 4000;
     char** argv;
@@ -620,7 +618,7 @@ setup_stack (void **esp, char* cmd_line)
     }
     
     // push argc
-    if(push(kpage, &ofs, argc, sizeof(argc))){
+    if(push(kpage, &ofs, &argc, sizeof(&argc))){
     }
     else{
         //push returned null
