@@ -522,7 +522,7 @@ static void * push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size)
 /* Create a minimal stack by mapping a zeroed page at the top of
  user virtual memory. */
 static bool
-setup_stack (void **esp, char* cmd_line)
+setup_stack (void **esp, const char* cmd_line)
 {
     uint8_t *kpage;
     bool success = false;
