@@ -246,7 +246,7 @@ bool
 load (const char *cmd_line, void (**eip) (void), void **esp)
 {
     struct thread *t = thread_current ();
-    char file_name[NAME_MAX + 2];
+    char* file_name;
     char* parsedPtr = cmd_line;
     char* token;
     int argc = 0;
