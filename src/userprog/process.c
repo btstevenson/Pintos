@@ -87,7 +87,6 @@ start_process (void *file_name_)
     bool success;
     
     // how to access this void struct helper
-    curr->
     
     /* Initialize interrupt frame and load executable. */
     memset (&if_, 0, sizeof if_);
