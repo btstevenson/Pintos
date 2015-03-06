@@ -44,8 +44,6 @@ process_execute (const char *file_name)
     char* parsedPtr = file_name;
     char* token;
     int argc = 0;
-    int i = 0;
-    int sizeLimit = 4000;
     char** argv;
     char** args;
     
@@ -231,7 +229,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char* cmd_line);
+static bool setup_stack (void **esp, const char* cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
