@@ -42,13 +42,13 @@ process_execute (const char *file_name)
     struct exec_helper helper;
     
     
-    sema_init(semaLock, 0);
+    sema_init(helper.semaLock, 0);
     
     /* Create a new thread to execute THREAD_NAME. */
     tid = thread_create (thread_name, PRI_DEFAULT, start_process, helper);
     if (tid != TID_ERROR){
         // down semaLock for loading
-        
+        sema_down(helper.semaLock);
         
         // if load is succesfull then set bool and add new child to the list of this thread's children (mind your list_elems)... we need to check this list in process wait, when children are done, process wait can finish... see process wait...
         
