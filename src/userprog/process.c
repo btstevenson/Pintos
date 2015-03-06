@@ -82,8 +82,12 @@ static void
 start_process (void *file_name_)
 {
     char *file_name = file_name_;
+    struct thread *curr = thread_current();
     struct intr_frame if_;
     bool success;
+    
+    // how to access this void struct helper
+    curr->
     
     /* Initialize interrupt frame and load executable. */
     memset (&if_, 0, sizeof if_);
@@ -130,7 +134,7 @@ process_exit (void)
     uint32_t *pd;
     
     // close file opened at the end of load from bin file in thread
-    file_close();
+    file_close(cur->bin_file);
     
     /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -293,7 +297,9 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
     
     /* Open executable file. */
     file = filesys_open (file_name);
-    // set threads bin file to file aswell using t thread struct above.
+    
+    t->bin_file = file;
+    
     if (file == NULL)
     {
         printf ("load: %s: open failed\n", file_name);
@@ -544,7 +550,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
         printf("token: %s\n", token);
     }
     args[argc - 1] = "\0";
-    argv[argc] = "\0"; // add null terminator in argv[arc]
+    argv[argc] = "\0"; // add null terminator in argv[argc]
     
     sizeLimit -= sizeof(argc);
     for (i = 0; i < argc; i++) {
@@ -565,7 +571,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     
     //push elements of argv in reverse order
     for (i = argc - 1; i >=0; i--) {
-        if(push(kpage, &ofs, argv[i], sizeof(argv[i]))){
+        if(push(upage, &ofs, argv[i], sizeof(argv[i]))){
         }
         else{
             // push returned null
@@ -574,7 +580,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
         }
     }
     // push in a null
-    if(push(kpage, &ofs, &null, sizeof(null))){
+    if(push(upage, &ofs, &null, sizeof(null))){
     }
     else{
         //push returned null
@@ -584,7 +590,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     
     //push addresses of argv elements in reverse order
     for (i = argc - 1; i >=0; i--) {
-        if(push(kpage, &ofs, &argv[i], sizeof(&argv[i]))){
+        if(push(upage, &ofs, &argv[i], sizeof(&argv[i]))){
         }
         else{
             // push returned null
@@ -594,7 +600,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     }
     
     // push address of argv array itself
-    if(push(kpage, &ofs, &argv, sizeof(argv))){
+    if(push(upage, &ofs, &argv, sizeof(argv))){
     }
     else{
         //push returned null
@@ -603,7 +609,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     }
     
     // push argc
-    if(push(kpage, &ofs, &argc, sizeof(&argc))){
+    if(push(upage, &ofs, &argc, sizeof(&argc))){
     }
     else{
         //push returned null
@@ -612,7 +618,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     }
     
     // push final null for pointer
-    if(push(kpage, &ofs, &null, sizeof(null))){
+    if(push(upage, &ofs, &null, sizeof(null))){
     }
     else{
         //push returned null
@@ -623,6 +629,7 @@ static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t 
     
     // set the stack pointer
     
+    esp = upage + ofs;
     
     return success;
     
@@ -637,21 +644,19 @@ static bool
 setup_stack (void **esp, const char* cmd_line)
 {
     uint8_t *kpage;
-    uint8_t *upage;
     bool success = false;
     
     
     kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-     if (kpage != NULL)
-     {
-     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-     if (success)
-     *esp = PHYS_BASE;
-     else
-     palloc_free_page (kpage);
-     }
-    
-    setup_stack_helper(cmd_line, kpage, upage, esp);
+    if (kpage != NULL)
+    {
+        uint8_t *upage = ( (uint8_t *) PHYS_BASE ) - PGSIZE;
+        success = install_page (upage - PGSIZE, kpage, true);
+        if (success)
+            setup_stack_helper(cmd_line, kpage, upage, esp);
+        else
+            palloc_free_page (kpage);
+    }
     
     return success;
 }
