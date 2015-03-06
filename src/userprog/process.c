@@ -19,7 +19,16 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (const char *cmd_line, void (**eip) (void), void **esp);
+static void * push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size);
+
+struct exec_helper
+{
+    const char *file_name;    //## Program to load (entire command line)
+    struct semaphore* semaLock;//##Add semaphore for loading (for resource race cases!)
+    bool loaded;//##Add bool for determining if program loaded successfully
+    //## Add other stuff you need to transfer between process_execute and process_start (hint, think of the children... need a way to add to the child's list, wee below about thread's child list.)
+};
 
 /* Starts a new thread running a user program loaded from
  FILENAME.  The new thread may be scheduled (and may even exit)
@@ -28,68 +37,23 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
-    char *fn_copy;
     tid_t tid;
-    char* parsedPtr = file_name;
-    char* token;
-    int argc = 0;
-    int i = 0;
-    int sizeLimit = 4000; // argument size limit of 4KB
-    const char** argv;
-    /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-    fn_copy = palloc_get_page (0);
-    if (fn_copy == NULL)
-        return TID_ERROR;
-    //strlcpy (fn_copy, file_name, PGSIZE); //replace this line
-    // put all arguments into fncopy which is the stack of the new thread
-    // parse file name to get name of process and arguments ex 'cat filename.txt' by splitting  at spaces
-    // put these into an array and then load that array into the fn_copy page from last index to first.
-    // also parse the argc count and pass that to page fn_copy
+    const char* thread_name;
+    struct exec_helper helper;
     
-    while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
-        argv[argc] = token;
-        argc++;
-        printf("token: %s\n", token);
-    }
-    argv[argc] = "\0"; // add null terminator in argv[arc]
     
-    // if the size of the arguments array is larger than 4kb (one page) then return that there are too may arguments
-    sizeLimit -= sizeof(argc);
-    for (i = 0; i < argc; i++) {
-        sizeLimit-= strlen(argv[i]);
-    }
-    if (sizeLimit > 0) {
-        // argument size is under the limit
-        printf("Arg size is %d bytes under the limit\n", sizeLimit);
-        printf("argc is %d\n", argc);
-        printf("argv[2] = %s\n", argv[2]);
-        // push the argv array and argc variable onto the page file
-        // using asm push and call
-        printf("backwards order\n");
-        for (i = argc-1; i >= 0 ; i--) {
-            // push null terminated strings onto stack then a 0 at the end
-            asm volatile ("push %0" : "=r" (argv[i]));
-        }
-        
-        // starts at arc because we add argv[argc] which must always be null
-        for (i = 1; i <= argc ; i++) {
-            // push adress of strings onto stack starting with a 0 in argv[argc]
-            
-        }
-        
-        
-        
-    }
-    else{
-        // argument size is too big return error.
-        printf("Passed Arguments Overflow Error\nProcess not started.");
-    }
+    sema_init(semaLock, 0);
     
-    /* Create a new thread to execute FILE_NAME. */
-    tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-    if (tid == TID_ERROR)
-        palloc_free_page (fn_copy);
+    /* Create a new thread to execute THREAD_NAME. */
+    tid = thread_create (thread_name, PRI_DEFAULT, start_process, helper);
+    if (tid != TID_ERROR){
+        // down semaLock for loading
+        
+        
+        // if load is succesfull then set bool and add new child to the list of this thread's children (mind your list_elems)... we need to check this list in process wait, when children are done, process wait can finish... see process wait...
+        
+        // else tid_error
+    }
     return tid;
 }
 
@@ -145,6 +109,9 @@ process_exit (void)
 {
     struct thread *cur = thread_current ();
     uint32_t *pd;
+    
+    // close file opened at the end of load from bin file in thread
+    file_close();
     
     /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -243,7 +210,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char* cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -254,9 +221,18 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  and its initial stack pointer into *ESP.
  Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp)
+load (const char *cmd_line, void (**eip) (void), void **esp)
 {
     struct thread *t = thread_current ();
+    char file_name[NAME_MAX + 2];
+    char* parsedPtr = cmd_line;
+    char* token;
+    int argc = 0;
+    int i = 0;
+    int sizeLimit = 4000;
+    char** argv;
+    char** args;
+    int argc = 0;
     struct Elf32_Ehdr ehdr;
     struct file *file = NULL;
     off_t file_ofs;
@@ -269,13 +245,45 @@ load (const char *file_name, void (**eip) (void), void **esp)
         goto done;
     process_activate ();
     
+    // parse executable name
+    while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
+        argv[argc] = token;
+        if (argc != 0) {
+            args[argc - 1] = token;
+        }
+        argc++;
+        printf("token: %s\n", token);
+    }
+    args[argc - 1] = "\0";
+    argv[argc] = "\0"; // add null terminator in argv[arc]
+    
+    sizeLimit -= sizeof(argc);
+    for (i = 0; i < argc; i++) {
+        sizeLimit-= strlen(argv[i]);
+    }
+    if (sizeLimit > 0) {
+        // argument size is under the limit
+        printf("Arg size is %d bytes under the limit\n", sizeLimit);
+        printf("argc is %d\n", argc);
+        printf("argv[2] = %s\n", argv[2]);
+    }
+    else{
+        // argument size is too big return error.
+        printf("Passed Arguments Overflow Error\nProcess not started.");
+    }
+    
+    file_name = argv[0];
+    
     /* Open executable file. */
     file = filesys_open (file_name);
+    // set threads bin file to file aswell using t thread struct above.
     if (file == NULL)
     {
         printf ("load: %s: open failed\n", file_name);
         goto done;
     }
+    
+    // disable file write for file here
     
     /* Read and verify executable header. */
     if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -350,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
     
     /* Set up stack. */
-    if (!setup_stack (esp))
+    if (!setup_stack (esp, cmd_line))
         goto done;
     
     /* Start address. */
@@ -360,7 +368,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     
 done:
     /* We arrive here whether the load is successful or not. */
-    file_close (file);
+    //file_close (file); close file in process exit.
     return success;
 }
 
@@ -472,24 +480,148 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     return true;
 }
 
+/* Pushes the SIZE bytes in BUF onto the stack in KPAGE, whose
+ page-relative stack pointer is *OFS, and then adjusts *OFS
+ appropriately.  The bytes pushed are rounded to a 32-bit
+ boundary.
+ 
+ If successful, returns a pointer to the newly pushed object.
+ On failure, returns a null pointer. */
+static void * push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size)
+{
+    size_t padsize = ROUND_UP (size, sizeof (uint32_t));
+    
+    if (*ofs < padsize){
+        return NULL;
+    }
+    
+    *ofs -= padsize;
+    
+    memcpy (kpage + *ofs + (padsize - size), buf, size);
+    
+    return kpage + *ofs + (padsize - size);
+}
+
 /* Create a minimal stack by mapping a zeroed page at the top of
  user virtual memory. */
 static bool
-setup_stack (void **esp)
+setup_stack (void **esp, char* cmd_line)
 {
     uint8_t *kpage;
     bool success = false;
-    
+    size_t ofs = PGSIZE;
+    char* const null = NULL;
+    char* parsedPtr = cmd_line;
+    char* token;
+    int argc = 0;
+    int i = 0;
+    int sizeLimit = 4000;
+    char** argv;
+    char** args;
+    int argc = 0;
     
     kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-    if (kpage != NULL)
-    {
-        success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-        if (success)
-            *esp = PHYS_BASE;
-        else
-            palloc_free_page (kpage);
+     if (kpage != NULL)
+     {
+     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+     if (success)
+     *esp = PHYS_BASE;
+     else
+     palloc_free_page (kpage);
+     }
+    
+    // parse
+    // parse executable name
+    while ((token = strtok_r(parsedPtr, " ", &parsedPtr))){
+        argv[argc] = token;
+        if (argc != 0) {
+            args[argc - 1] = token;
+        }
+        argc++;
+        printf("token: %s\n", token);
     }
+    args[argc - 1] = "\0";
+    argv[argc] = "\0"; // add null terminator in argv[arc]
+    
+    sizeLimit -= sizeof(argc);
+    for (i = 0; i < argc; i++) {
+        sizeLimit-= strlen(argv[i]);
+    }
+    if (sizeLimit > 0) {
+        // argument size is under the limit
+        printf("Arg size is %d bytes under the limit\n", sizeLimit);
+        printf("argc is %d\n", argc);
+        printf("argv[2] = %s\n", argv[2]);
+    }
+    else{
+        // argument size is too big return error.
+        printf("Passed Arguments Overflow Error\nProcess not started.");
+    }
+    
+    // start pushing on the stack
+    
+    //push elements of argv in reverse order
+    for (i = argc - 1; i >=0; i--) {
+        if(push(kpage, &ofs, argv[i], sizeof(argv[i]))){
+        }
+        else{
+            // push returned null
+            success = false;
+            return success;
+        }
+    }
+    // push in a null
+    if(push(kpage, &ofs, &null, sizeof(null))){
+    }
+    else{
+        //push returned null
+        success = false;
+        return success;
+    }
+    
+    //push addresses of argv elements in reverse order
+    for (i = argc - 1; i >=0; i--) {
+        if(push(kpage, &ofs, &argv[i], sizeof(&argv[i]))){
+        }
+        else{
+            // push returned null
+            success = false;
+            return success;
+        }
+    }
+    
+    // push address of argv array itself
+    if(push(kpage, &ofs, &argv, sizeof(argv))){
+    }
+    else{
+        //push returned null
+        success = false;
+        return success;
+    }
+    
+    // push argc
+    if(push(kpage, &ofs, argc, sizeof(argc))){
+    }
+    else{
+        //push returned null
+        success = false;
+        return success;
+    }
+    
+    // push final null for pointer
+    if(push(kpage, &ofs, &null, sizeof(null))){
+    }
+    else{
+        //push returned null
+        success = false;
+        return success;
+    }
+    
+    
+    // set the stack pointer
+    
+    
+    
     return success;
 }
 
