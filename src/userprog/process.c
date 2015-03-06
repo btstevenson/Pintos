@@ -519,14 +519,11 @@ static void * push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size)
     return kpage + *ofs + (padsize - size);
 }
 
-/* Create a minimal stack by mapping a zeroed page at the top of
- user virtual memory. */
-static bool
-setup_stack (void **esp, const char* cmd_line)
+static bool setup_stack_helper (const char * cmd_line, uint8_t * kpage, uint8_t * upage, void ** esp)
 {
-    uint8_t *kpage;
-    bool success = false;
-    size_t ofs = PGSIZE;
+    size_t ofs = PGSIZE; //##Used in push!
+    char * const null = NULL; //##Used for pushing nulls
+    char *ptr; //##strtok_r usage
     char* const null = NULL;
     char* parsedPtr = cmd_line;
     char* token;
@@ -535,16 +532,6 @@ setup_stack (void **esp, const char* cmd_line)
     char** argv;
     char** args;
     int argc = 0;
-    
-    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-     if (kpage != NULL)
-     {
-     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-     if (success)
-     *esp = PHYS_BASE;
-     else
-     palloc_free_page (kpage);
-     }
     
     // parse
     // parse executable name
@@ -637,6 +624,32 @@ setup_stack (void **esp, const char* cmd_line)
     // set the stack pointer
     
     
+}
+
+
+/* Create a minimal stack by mapping a zeroed page at the top of
+ user virtual memory. */
+
+
+static bool
+setup_stack (void **esp, const char* cmd_line)
+{
+    uint8_t *kpage;
+    bool success = false;
+    size_t ofs = PGSIZE;
+    
+    
+    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+     if (kpage != NULL)
+     {
+     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+     if (success)
+     *esp = PHYS_BASE;
+     else
+     palloc_free_page (kpage);
+     }
+    
+    setup_stack_helper(cmd_line, kpage, <#uint8_t *upage#>, esp);
     
     return success;
 }
