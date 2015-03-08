@@ -54,15 +54,17 @@ process_execute (const char *file_name)
   unsigned int size = 0;
   tid_t tid;
 
+  memset(&thread_name, 0, sizeof(thread_name));
   exec = (exec_t *)malloc(sizeof(exec_t));
-  memset(exec, 0, sizeof(exec_t));
+
   while(file_name[size] != '\0')
   {
 	  size++;
   }
   exec->file_length = size;
   exec->file_name = (const char *)malloc(size);
-  memcpy((void *)exec->file_name, file_name, size);
+  memset((void *)exec->file_name, 0, size);
+  strlcpy((char *)exec->file_name, file_name, size+1);
 
   sema_init(&exec->load_lock, 1);
 
@@ -79,7 +81,7 @@ process_execute (const char *file_name)
   memcpy(&thread_name, temp, sizeof(thread_name));
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, exec);
+  tid = thread_create (thread_name, PRI_DEFAULT, start_process, exec);
   if (tid != TID_ERROR)
   {
 	  sema_down(&exec->load_lock);
@@ -105,10 +107,24 @@ start_process (void *exec)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  if(success)
+  {
+	  thread_current()->cp->load = LOADED;
+  }
+  else
+  {
+	  thread_current()->cp->load = LOAD_FAILED;
+  }
 
   /* If load failed, quit. */
   //palloc_free_page (file_name);
   sema_up(&exec_temp->load_lock);
+  if(exec_temp != NULL)
+  {
+	  free((void *)exec_temp->file_name);
+	  free(exec_temp);
+  }
+
   if (!success)
   {
     thread_exit ();

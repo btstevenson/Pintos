@@ -120,7 +120,7 @@ int write (int fd, const void *buffer, unsigned length)
 
 void check_ptr_validity(const void * vaddr)
 {
-	if(vaddr < PHYS_BASE || vaddr < USER_ADDR_FLOOR)
+	if(!(vaddr < PHYS_BASE) || vaddr < USER_ADDR_FLOOR)
 	{
 		exit(ER_FAIL);
 	}
