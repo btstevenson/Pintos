@@ -11,8 +11,10 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -22,6 +24,9 @@
 
 /* max depth for nesting donations */
 #define MAX_DEPTH 8
+
+#define FD_MIN 2
+#define NOT_PARENT -1
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -210,10 +215,14 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
+  t->parent = thread_tid();
+  child_t *cp = add_child(t->tid);
+  t->cp = cp;
+
   /* Add to run queue. */
   thread_unblock (t);
 
-  thread_run_max(thread_current ());
+ // thread_run_max(thread_current ());
 
   return tid;
 }
@@ -595,6 +604,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->lock_hold);
   list_push_back (&all_list, &t->allelem);
+
+  list_init(&t->file_list);
+  t->fd = FD_MIN;
+
+  list_init(&t->child_list);
+  t->parent = NOT_PARENT;
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -710,6 +726,24 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool thread_status(int tid)
+{
+	struct list_elem *e;
+	bool found = false;
+
+	for(e = list_begin(&all_list); e != list_end(&all_list);
+			e = list_next(e))
+	{
+		struct thread *find = list_entry(e, struct thread, allelem);
+		if(find->tid == tid)
+		{
+			found = true;
+			break;
+		}
+	}
+	return found;
+}
 
 /*****************************************************************
  * Function: tick_cmp
