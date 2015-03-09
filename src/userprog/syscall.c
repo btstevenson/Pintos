@@ -4,6 +4,8 @@
 #include <syscall-nr.h>
 #include <user/syscall.h>
 #include "devices/input.h"
+#include "devices/shutdown.h"
+#include "lib/user/syscall.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/interrupt.h"
@@ -29,7 +31,6 @@ enum sys_call_size
 	seek_t = 2,
 	tell_t = 1,
 	close_t = 1,
-	halt_t = 1,
 	exit_t = 1,
 	exec_t = 1,
 	wait_t = 1
@@ -107,7 +108,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
         case SYS_HALT:
         {
-            get_arg(f, &arg[0], halt_t);
+            //get_arg(f, &arg[0], halt_t);
             halt();
             break;
         }
@@ -121,21 +122,21 @@ syscall_handler (struct intr_frame *f UNUSED)
         {
             get_arg(f, &arg[0], create_t);
             arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-            f->eax = create(arg[0], (unsigned) arg[1]);
+            f->eax = create((const char *)arg[0], (unsigned) arg[1]);
             break;
         }
         case SYS_REMOVE:
         {
             get_arg(f, &arg[0], remove_t);
             arg[0] = user_to_kernel_ptr((const void *) arg[0]);
-            f->eax = remove(arg[0]);
+            f->eax = remove((const char *)arg[0]);
             break;
         }
         case SYS_OPEN:
         {
             get_arg(f, &arg[0], open_t);
             arg[0] = user_to_kernel_ptr((const void *)arg[0]);
-            f->eax = open(arg[0]);
+            f->eax = open((const char *)arg[0]);
             break;
         }
         case SYS_FILESIZE:
@@ -153,6 +154,11 @@ syscall_handler (struct intr_frame *f UNUSED)
         }
 
 	}
+}
+
+void halt(void)
+{
+	shutdown_power_off();
 }
 
 pid_t exec(const char *cmd_line)
@@ -221,6 +227,7 @@ int open(const char *file)
 		return ER_FAIL;
 	}
 	fd = add_process_file(file_temp);
+	lock_release(&file_lock);
 	return fd;
 }
 
@@ -259,6 +266,11 @@ int read(int fd, void *buffer, unsigned size)
 
 	lock_acquire(&file_lock);
 	file_temp = get_process_file(fd);
+	if(!file_temp)
+	{
+		lock_release(&file_lock);
+		return ER_FAIL;
+	}
 	size_read = file_read(file_temp, buffer, size);
 	lock_release(&file_lock);
 	return size_read;
@@ -315,9 +327,6 @@ unsigned tell(int fd)
 	return offset;
 }
 
-void halt (void){
-    shutdown_power_off();
-}
 
 void close (int fd){
     close_process_file(fd);
