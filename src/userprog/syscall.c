@@ -105,6 +105,40 @@ syscall_handler (struct intr_frame *f UNUSED)
 			f->eax = tell(arg[0]);
 			break;
 		}
+        case SYS_HALT:
+        {
+            get_arg(f, &arg[0], halt_t);
+            halt();
+        }
+        case SYS_CLOSE:
+        {
+            get_arg(f, &arg[0], close_t);
+            close(arg[0]);
+        }
+        case SYS_CREATE:
+        {
+            get_arg(f, &arg[0], create_t);
+            arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+            f->eax = create(arg[0], (unsigned) arg[1]);
+        }
+        case SYS_REMOVE:
+        {
+            get_arg(f, &arg[0], remove_t);
+            arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+            f->eax = remove(arg[0]);
+        }
+        case SYS_OPEN:
+        {
+            get_arg(f, &arg[0], open_t);
+            arg[0] = user_to_kernel_ptr((const void *)arg[0]);
+            f->eax = open(arg[0]);
+        }
+        case SYS_FILESIZE:
+        {
+            get_arg(f, &arg[0], filesize_t);
+            f->eax = filesize(arg[0]);
+        }
+
 	}
 }
 
@@ -267,6 +301,15 @@ unsigned tell(int fd)
 	lock_release(&file_lock);
 	return offset;
 }
+
+void halt (void){
+    shutdown_power_off();
+}
+
+void close (int fd){
+    close_process_file(fd);
+}
+
 
 void check_ptr_validity(const void * vaddr)
 {
