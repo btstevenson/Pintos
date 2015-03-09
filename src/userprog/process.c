@@ -79,7 +79,7 @@ process_execute (const char *file_name)
   */
 
   temp = strtok_r((char *)file_name, " ", &save_data);
-  memcpy(&thread_name, temp, sizeof(thread_name));
+  memcpy(&thread_name, temp, strlen(temp));
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (thread_name, PRI_DEFAULT, start_process, exec);
@@ -91,7 +91,7 @@ process_execute (const char *file_name)
   {
 	  if(exec != NULL)
 	  {
-		  free(exec->file_name);
+		  free((void *)exec->file_name);
 		  free(exec);
 	  }
   }
@@ -318,6 +318,8 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+
+  memset(&file_name, 0, sizeof(file_name));
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
