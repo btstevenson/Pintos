@@ -1,6 +1,7 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include "userprog/gdt.h"
 #include <user/syscall.h>
 #include "threads/interrupt.h"
@@ -128,6 +129,11 @@ page_fault (struct intr_frame *f)
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
 
+
+  // remove these two lines if not needed
+  memcpy(f->eip, &f->eax, sizeof(f->eax));
+  f->eax = 0xffffffff;
+
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -137,8 +143,6 @@ page_fault (struct intr_frame *f)
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-  //asm("movl %eax, %eip");
-  //asm("movl 0xffffffff, %eax");
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */

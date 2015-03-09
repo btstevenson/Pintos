@@ -52,6 +52,7 @@ void get_arg(struct intr_frame *f, int *arg, int size);
 void check_valid_buffer(void *buffer, unsigned size);
 void child_process_init(child_t *cp, int pid);
 int user_to_kernel_ptr(const void *vaddr);
+int get_user (const uint8_t *uaddr);
 
 int add_process_file(struct file *new_file);
 struct file * get_process_file(int fd);
@@ -335,10 +336,22 @@ void close (int fd)
     lock_release(&file_lock);
 }
 
+// might not need
+int get_user (const uint8_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+  return result;
+}
 
 void check_ptr_validity(const void * vaddr)
 {
-	if(!(vaddr < PHYS_BASE) || vaddr < USER_ADDR_FLOOR)
+	if(!is_user_vaddr(vaddr) || vaddr < USER_ADDR_FLOOR)
+	{
+		exit(ER_FAIL);
+	}
+	if(get_user((const uint8_t *) vaddr) < 0)
 	{
 		exit(ER_FAIL);
 	}
