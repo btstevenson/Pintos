@@ -152,6 +152,12 @@ syscall_handler (struct intr_frame *f UNUSED)
         	f->eax = exec((const char *) arg[0]);
         	break;
         }
+        case SYS_WAIT:
+        {
+        	get_arg(f, &arg[0], wait_t);
+        	f->eax = wait(arg[0]);
+        	break;
+        }
 
 	}
 }
@@ -250,9 +256,6 @@ int filesize(int fd)
 
 int read(int fd, void *buffer, unsigned size)
 {
-	struct file *file_temp;
-	int size_read;
-
 	if(fd == STDIN_FILENO)
 	{
 		unsigned i;
@@ -265,6 +268,8 @@ int read(int fd, void *buffer, unsigned size)
 	}
 
 	lock_acquire(&file_lock);
+	struct file *file_temp;
+	int size_read;
 	file_temp = get_process_file(fd);
 	if(!file_temp)
 	{
@@ -278,8 +283,6 @@ int read(int fd, void *buffer, unsigned size)
 
 int write (int fd, const void *buffer, unsigned length)
 {
-	int write_size = 0;
-
 	if(fd == STDOUT_FILENO)
 	{
 		putbuf(buffer, length);
@@ -287,6 +290,7 @@ int write (int fd, const void *buffer, unsigned length)
 	}
 
 	lock_acquire(&file_lock);
+	int write_size = 0;
 	struct file *temp_file = get_process_file(fd);
 	if(!temp_file)
 	{
