@@ -13,6 +13,7 @@
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 
 #define USER_ADDR_FLOOR ((void *) 0x08048000)
 #define MAX_SYS_ARGS 3
@@ -77,15 +78,56 @@ syscall_handler (struct intr_frame *f UNUSED)
 		        (unsigned) arg[2]);
 		  	break;
 		}
+		case SYS_READ:
+		{
+			get_arg(f, &arg[0], read_t);
+			check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
+			arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+			f->eax = read(arg[0], (void *) arg[1],
+					(unsigned) arg[2]);
+			break;
+		}
 		case SYS_EXIT:
 		{
 			get_arg(f, &arg[0], exit_t);
 			exit(arg[0]);
 			break;
 		}
+		case SYS_SEEK:
+		{
+			get_arg(f, &arg[0], seek_t);
+			seek(arg[0], (unsigned) arg[1]);
+			break;
+		}
+		case SYS_TELL:
+		{
+			get_arg(f, &arg[0], tell_t);
+			f->eax = tell(arg[0]);
+			break;
+		}
 	}
 }
 
+pid_t exec(const char *cmd_line)
+{
+	pid_t pid = process_execute(cmd_line);
+	child_t *cp = get_child(pid);
+	ASSERT(cp);
+	while(cp->load == NOT_LOADED)
+	{
+		barrier();
+	}
+	if(cp->load == LOAD_FAILED)
+	{
+		return ER_FAIL;
+	}
+	return pid;
+}
+
+int wait(pid_t pid)
+{
+	return process_wait(pid);
+}
 
 void exit(int status)
 {
@@ -184,6 +226,7 @@ int write (int fd, const void *buffer, unsigned length)
 		putbuf(buffer, length);
 		return length;
 	}
+
 	lock_acquire(&file_lock);
 	struct file *temp_file = get_process_file(fd);
 	if(!temp_file)
@@ -197,6 +240,33 @@ int write (int fd, const void *buffer, unsigned length)
 	return write_size;
 }
 
+void seek(int fd, unsigned position)
+{
+	lock_acquire(&file_lock);
+	struct file *file_temp = get_process_file(fd);
+	if(!file_temp)
+	{
+		lock_release(&file_lock);
+		return;
+	}
+	file_seek(file_temp, position);
+	lock_release(&file_lock);
+}
+
+unsigned tell(int fd)
+{
+	unsigned offset;
+	lock_acquire(&file_lock);
+	struct file *file_temp = get_process_file(fd);
+	if(!file_temp)
+	{
+		lock_release(&file_lock);
+		return ER_FAIL;
+	}
+	offset = file_tell(file_temp);
+	lock_release(&file_lock);
+	return offset;
+}
 
 void check_ptr_validity(const void * vaddr)
 {
