@@ -87,6 +87,14 @@ process_execute (const char *file_name)
   {
 	  sema_down(&exec->load_lock);
   }
+  else
+  {
+	  if(exec != NULL)
+	  {
+		  free(exec->file_name);
+		  free(exec);
+	  }
+  }
 
   return tid;
 }

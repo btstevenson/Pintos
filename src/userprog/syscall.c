@@ -201,9 +201,8 @@ void exit(int status)
 
 bool create(const char *file, unsigned initial_size)
 {
-	bool success = false;
-
 	lock_acquire(&file_lock);
+	bool success = false;
 	success = filesys_create(file, initial_size);
 	lock_release(&file_lock);
 	return success;
@@ -211,21 +210,18 @@ bool create(const char *file, unsigned initial_size)
 
 bool remove(const char *file)
 {
-	bool success = false;
-
 	lock_acquire(&file_lock);
+	bool success = false;
 	success = filesys_remove(file);
 	lock_release(&file_lock);
-
 	return success;
 }
 
 int open(const char *file)
 {
+	lock_acquire(&file_lock);
 	int fd;
 	struct file *file_temp;
-
-	lock_acquire(&file_lock);
 	file_temp = filesys_open(file);
 	if(!file_temp)
 	{
@@ -239,10 +235,9 @@ int open(const char *file)
 
 int filesize(int fd)
 {
+	lock_acquire(&file_lock);
 	struct file *file_temp;
 	int size;
-
-	lock_acquire(&file_lock);
 	file_temp = get_process_file(fd);
 	if(!file_temp)
 	{
@@ -318,8 +313,9 @@ void seek(int fd, unsigned position)
 
 unsigned tell(int fd)
 {
-	unsigned offset;
+
 	lock_acquire(&file_lock);
+	unsigned offset;
 	struct file *file_temp = get_process_file(fd);
 	if(!file_temp)
 	{
@@ -332,8 +328,11 @@ unsigned tell(int fd)
 }
 
 
-void close (int fd){
+void close (int fd)
+{
+	lock_acquire(&file_lock);
     close_process_file(fd);
+    lock_release(&file_lock);
 }
 
 
@@ -408,9 +407,10 @@ void close_process_file(int fd)
 			free(file_temp);
 			if(fd != CLOSE_FILES)
 			{
-				break;
+				return;
 			}
 		}
+		file_elem = next;
 	}
 }
 
