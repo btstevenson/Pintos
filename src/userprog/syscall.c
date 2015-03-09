@@ -3,6 +3,7 @@
 #include <string.h>
 #include <syscall-nr.h>
 #include <user/syscall.h>
+#include "devices/input.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/interrupt.h"
@@ -50,6 +51,7 @@ void check_valid_buffer(void *buffer, unsigned size);
 void child_process_init(child_t *cp, int pid);
 int user_to_kernel_ptr(const void *vaddr);
 
+int add_process_file(struct file *new_file);
 struct file * get_process_file(int fd);
 
 void
@@ -96,9 +98,87 @@ void exit(int status)
 	thread_exit();
 }
 
+bool create(const char *file, unsigned initial_size)
+{
+	bool success = false;
+
+	lock_acquire(&file_lock);
+	success = filesys_create(file, initial_size);
+	lock_release(&file_lock);
+	return success;
+}
+
+bool remove(const char *file)
+{
+	bool success = false;
+
+	lock_acquire(&file_lock);
+	success = filesys_remove(file);
+	lock_release(&file_lock);
+
+	return success;
+}
+
+int open(const char *file)
+{
+	int fd;
+	struct file *file_temp;
+
+	lock_acquire(&file_lock);
+	file_temp = filesys_open(file);
+	if(!file_temp)
+	{
+		lock_release(&file_lock);
+		return ER_FAIL;
+	}
+	fd = add_process_file(file_temp);
+	return fd;
+}
+
+int filesize(int fd)
+{
+	struct file *file_temp;
+	int size;
+
+	lock_acquire(&file_lock);
+	file_temp = get_process_file(fd);
+	if(!file_temp)
+	{
+		lock_release(&file_lock);
+		return ER_FAIL;
+	}
+	size = file_length(file_temp);
+	lock_release(&file_lock);
+	return size;
+}
+
+int read(int fd, void *buffer, unsigned size)
+{
+	struct file *file_temp;
+	int size_read;
+
+	if(fd == STDIN_FILENO)
+	{
+		unsigned i;
+		uint8_t *temp_buf = (uint8_t *)buffer;
+		for(i = 0; i < size; i++)
+		{
+			temp_buf[i] = input_getc();
+		}
+		return size;
+	}
+
+	lock_acquire(&file_lock);
+	file_temp = get_process_file(fd);
+	size_read = file_read(file_temp, buffer, size);
+	lock_release(&file_lock);
+	return size_read;
+}
+
 int write (int fd, const void *buffer, unsigned length)
 {
 	int write_size = 0;
+
 	if(fd == STDOUT_FILENO)
 	{
 		putbuf(buffer, length);
@@ -159,6 +239,39 @@ void get_arg(struct intr_frame *f, int *arg, int size)
 		ptr = (int *) f->esp + i + 1;
 		check_ptr_validity((const void *) ptr);
 		arg[i] = *ptr;
+	}
+}
+
+int add_process_file(struct file *new_file)
+{
+	p_file_t *p_file = malloc(sizeof(p_file_t));
+	p_file->file = new_file;
+	p_file->fd = thread_current()->fd;
+	thread_current()->fd++;
+	list_push_back(&thread_current()->file_list, &p_file->elem);
+	return p_file->fd;
+}
+
+void close_process_file(int fd)
+{
+	struct thread *cur = thread_current();
+	struct list_elem *file_elem = list_begin(&cur->file_list);
+	struct list_elem *next;
+
+	while(file_elem != list_end(&cur->file_list))
+	{
+		next = list_next(file_elem);
+		p_file_t *file_temp = list_entry(file_elem, p_file_t, elem);
+		if(file_temp->fd == fd || fd == CLOSE_FILES)
+		{
+			file_close(file_temp->file);
+			list_remove(&file_temp->elem);
+			free(file_temp);
+			if(fd != CLOSE_FILES)
+			{
+				break;
+			}
+		}
 	}
 }
 

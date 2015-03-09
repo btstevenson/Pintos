@@ -530,6 +530,7 @@ setup_stack (void **esp, const char *cmd_line, char **save_data)
   bool success = false;
   char *token;
   char **argv;
+  char **mem_hold;
   int mem_offset = 0;
   int argc = 0;
   int argv_size = 0;
@@ -553,21 +554,28 @@ setup_stack (void **esp, const char *cmd_line, char **save_data)
     }
 
   /* allocate memory for arguments */
-  argv = malloc(MIN_ARGS*sizeof(char *));
+  mem_hold = malloc(MIN_ARGS*sizeof(char *));
 
-  /* push arguments onto stack */
   for(token = (char *)cmd_line; token != NULL;
-		  token = strtok_r(NULL, " ", save_data))
+  		  token = strtok_r(NULL, " ", save_data))
   {
-	  *esp -= strlen(token) + 1;
-	  argv[argc] = *esp;
+	  mem_hold[argc] = token;
 	  argc++;
 	  if(argc >= argv_size && argc < MAX_ARGS)
 	  {
 		  argv_size *= 2;
-		  argv = realloc(argv, argv_size*sizeof(char *));
+		  mem_hold = realloc(mem_hold, argv_size*sizeof(char *));
 	  }
-	  memcpy(*esp, token, strlen(token) + 1);
+  }
+
+  argv = malloc(argv_size*sizeof(char *));
+
+  /* push arguments onto stack */
+  for(i = argc-1; i >= 0; i--)
+  {
+	  *esp -= strlen(mem_hold[i]) + 1;
+	  argv[i] = *esp;
+	  memcpy(*esp, mem_hold[i], strlen(mem_hold[i]) + 1);
   }
 
   argv[argc] = 0;
@@ -597,6 +605,7 @@ setup_stack (void **esp, const char *cmd_line, char **save_data)
   memcpy(*esp, &argv[argc], sizeof(void *));
 
   free(argv);
+  free(mem_hold);
 
 
   return success;
