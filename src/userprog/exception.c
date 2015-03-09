@@ -131,8 +131,8 @@ page_fault (struct intr_frame *f)
 
 
   // remove these two lines if not needed
-  memcpy(f->eip, &f->eax, sizeof(f->eax));
-  f->eax = 0xffffffff;
+  //memcpy(f->eip, &f->eax, sizeof(f->eax));
+  //f->eax = 0xffffffff;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to

@@ -351,10 +351,12 @@ void check_ptr_validity(const void * vaddr)
 	{
 		exit(ER_FAIL);
 	}
+	/*
 	if(get_user((const uint8_t *) vaddr) < 0)
 	{
 		exit(ER_FAIL);
 	}
+	*/
 }
 
 void check_valid_buffer(void *buffer, unsigned size)
