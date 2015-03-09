@@ -179,7 +179,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  // need to close files
+  close_process_file(CLOSE_FILES);
 
   remove_all_child();
 
