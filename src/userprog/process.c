@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 #define MIN_ARGS 2 // start with minimal amount of args
 #define MAX_ARGS 4000
@@ -163,6 +164,7 @@ process_wait (tid_t child_tid UNUSED)
 	{
 		return ER_FAIL;
 	}
+	cp->wait = true;
 	while(!cp->exit)
 	{
 		barrier();
