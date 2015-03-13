@@ -216,13 +216,14 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   t->parent = thread_tid();
+  /* add child to parent list */
   child_t *cp = add_child(t->tid);
   t->cp = cp;
 
   /* Add to run queue. */
   thread_unblock (t);
 
- // thread_run_max(thread_current ());
+  thread_run_max(thread_current ());
 
   return tid;
 }

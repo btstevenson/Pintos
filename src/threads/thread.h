@@ -108,13 +108,13 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    struct list file_list;
+    struct list file_list;				/* list of files for process */
     int fd;
 
-    struct list child_list;
+    struct list child_list;				/* list of child for process */
     tid_t parent;
 
-    child_t* cp;
+    child_t* cp;						/* for storing child in parent's list */
   };
 
 

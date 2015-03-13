@@ -88,7 +88,8 @@ kill (struct intr_frame *f)
     case SEL_UCSEG:
       /* User's code segment, so it's a user exception, as we
          expected.  Kill the user process.  */
-      printf ("%s: dying due to interrupt %#04x (%s).\n", thread_name (), f->vec_no, intr_name (f->vec_no));
+      printf ("%s: dying due to interrupt %#04x (%s).\n", thread_name (),
+    		  f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
       exit(-1);
 
@@ -128,11 +129,6 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-
-
-  // remove these two lines if not needed
-  //memcpy(f->eip, &f->eax, sizeof(f->eax));
-  //f->eax = 0xffffffff;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to

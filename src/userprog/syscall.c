@@ -20,6 +20,7 @@
 #define USER_ADDR_FLOOR ((void *) 0x08048000)
 #define MAX_SYS_ARGS 3
 
+/* enum of arguments for system calls */
 enum sys_call_size
 {
 	create_t = 2,
@@ -38,6 +39,7 @@ enum sys_call_size
 
 struct lock file_lock;
 
+/* struct to hold file information */
 struct file_info
 {
 	struct file *file;
@@ -52,7 +54,6 @@ void get_arg(struct intr_frame *f, int *arg, int size);
 void check_valid_buffer(void *buffer, unsigned size);
 void child_process_init(child_t *cp, int pid);
 int user_to_kernel_ptr(const void *vaddr);
-int get_user (const uint8_t *uaddr);
 
 int add_process_file(struct file *new_file);
 struct file * get_process_file(int fd);
@@ -109,7 +110,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
         case SYS_HALT:
         {
-            //get_arg(f, &arg[0], halt_t);
             halt();
             break;
         }
@@ -175,6 +175,7 @@ pid_t exec(const char *cmd_line)
 	ASSERT(cp);
 	while(cp->load == NOT_LOADED)
 	{
+		/* wait for load status */
 		barrier();
 	}
 	if(cp->load == LOAD_FAILED)
@@ -336,29 +337,16 @@ void close (int fd)
     lock_release(&file_lock);
 }
 
-// might not need
-int get_user (const uint8_t *uaddr)
-{
-  int result;
-  asm ("movl $1f, %0; movzbl %1, %0; 1:"
-       : "=&a" (result) : "m" (*uaddr));
-  return result;
-}
-
+/* checks for valid user pointer */
 void check_ptr_validity(const void * vaddr)
 {
 	if(!is_user_vaddr(vaddr) || vaddr < USER_ADDR_FLOOR)
 	{
 		exit(ER_FAIL);
 	}
-	/*
-	if(get_user((const uint8_t *) vaddr) < 0)
-	{
-		exit(ER_FAIL);
-	}
-	*/
 }
 
+/* checks buffer by looking at each part in the buffer */
 void check_valid_buffer(void *buffer, unsigned size)
 {
 	unsigned i = 0;
@@ -382,6 +370,7 @@ int user_to_kernel_ptr(const void *vaddr)
 	return (int) ptr;
 }
 
+/* gets arguments from interrupt frame */
 void get_arg(struct intr_frame *f, int *arg, int size)
 {
 	int i = 0;
@@ -395,6 +384,7 @@ void get_arg(struct intr_frame *f, int *arg, int size)
 	}
 }
 
+/* add an open file to process file list */
 int add_process_file(struct file *new_file)
 {
 	p_file_t *p_file = malloc(sizeof(p_file_t));
@@ -405,6 +395,7 @@ int add_process_file(struct file *new_file)
 	return p_file->fd;
 }
 
+/* close an open file in the process file list */
 void close_process_file(int fd)
 {
 	struct thread *cur = thread_current();
@@ -429,6 +420,7 @@ void close_process_file(int fd)
 	}
 }
 
+/* get a process file from the list using file descriptor */
 struct file * get_process_file(int fd)
 {
 	struct thread *cur = thread_current();
@@ -447,6 +439,7 @@ struct file * get_process_file(int fd)
 	return NULL;
 }
 
+/* add child to parent child list */
 child_t* add_child(int pid)
 {
 	child_t *cp = (child_t *)malloc(sizeof(child_t));
@@ -455,6 +448,7 @@ child_t* add_child(int pid)
 	return cp;
 }
 
+/* initiate variables in child struct */
 void child_process_init(child_t *cp, int pid)
 {
 	cp->pid = pid;
@@ -464,6 +458,7 @@ void child_process_init(child_t *cp, int pid)
 	lock_init(&cp->wait_lock);
 }
 
+/* get child from parent list based on pid */
 child_t* get_child(int pid)
 {
 	struct thread *cur = thread_current();

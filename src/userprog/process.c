@@ -21,9 +21,9 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
-#define MIN_ARGS 2 // start with minimal amount of args
+#define MIN_ARGS 2  		/* start with minimal amount of args */
 #define MAX_ARGS 4000
-#define WORD_SIZE 4 // for aligning the memory in the page
+#define WORD_SIZE 4 		/* for aligning the memory in the page */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -44,7 +44,7 @@ typedef struct exec_helper exec_t;
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 
-/* need to implement argument handling for processes */
+
 tid_t
 process_execute (const char *file_name) 
 {
@@ -58,10 +58,13 @@ process_execute (const char *file_name)
   memset(&thread_name, 0, sizeof(thread_name));
   exec = (exec_t *)malloc(sizeof(exec_t));
 
+  /* get size of file name */
   while(file_name[size] != '\0')
   {
 	  size++;
   }
+
+  /* copy file name into exec helper struct */
   exec->file_length = size;
   exec->file_name = (const char *)malloc(size);
   memset((void *)exec->file_name, 0, size);
@@ -69,15 +72,7 @@ process_execute (const char *file_name)
 
   sema_init(&exec->load_lock, 1);
 
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  /*
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-  */
-
+  /* parse thread name from file name */
   temp = strtok_r((char *)file_name, " ", &save_data);
   memcpy(&thread_name, temp, strlen(temp));
 
@@ -126,7 +121,7 @@ start_process (void *exec)
   }
 
   /* If load failed, quit. */
-  //palloc_free_page (file_name);
+  /* release load lock and free buffer allocation */
   sema_up(&exec_temp->load_lock);
   if(exec_temp != NULL)
   {
@@ -193,7 +188,7 @@ process_exit (void)
 
   remove_all_child();
 
-  // set exit value if kernel kills process
+  /* set exit value if kernel kills process */
   if(thread_status(cur->parent))
   {
 	  cur->cp->exit = true;
@@ -330,7 +325,7 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   temp = strtok_r((char *)cmd_line, " ", &save_ptr);
   memcpy(&file_name, temp, sizeof(file_name));
 
-  /* Open executable file. */
+  /* Open executable file and deny write. */
   file = filesys_open (file_name);
   if (file == NULL) 
   {
@@ -425,7 +420,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  //file_close (file);
   return success;
 }
 
@@ -572,6 +566,7 @@ setup_stack (void **esp, const char *cmd_line, char **save_data)
   /* allocate memory for arguments */
   mem_hold = malloc(MIN_ARGS*sizeof(char *));
 
+  /* parse arguments into buffer */
   for(token = (char *)cmd_line; token != NULL;
   		  token = strtok_r(NULL, " ", save_data))
   {

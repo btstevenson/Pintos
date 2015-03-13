@@ -9,6 +9,7 @@ void syscall_init (void);
 #define ER_FAIL		-1
 #define CLOSE_FILES -1
 
+/* status enum for processes */
 typedef enum
 {
 	NOT_LOADED,
@@ -16,6 +17,7 @@ typedef enum
 	LOAD_FAILED,
 }load_status_t;
 
+/* child struct to hold child information */
 struct child_process
 {
 	int pid;
