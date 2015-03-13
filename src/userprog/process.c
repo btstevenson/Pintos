@@ -64,11 +64,12 @@ process_execute (const char *file_name)
 	  size++;
   }
 
+  size = size +1;  /* account for null terminator */
   /* copy file name into exec helper struct */
   exec->file_length = size;
   exec->file_name = (const char *)malloc(size);
   memset((void *)exec->file_name, 0, size);
-  strlcpy((char *)exec->file_name, file_name, size+1);
+  strlcpy((char *)exec->file_name, file_name, size);
 
   sema_init(&exec->load_lock, 1);
 

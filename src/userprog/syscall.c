@@ -389,18 +389,15 @@ int add_process_file(struct file *new_file)
 {
 	struct thread *cur = thread_current();
 	p_file_t *p_file = malloc(sizeof(p_file_t));
-	if(p_file != NULL)
-	{
-		p_file->file = new_file;
-		p_file->fd = cur->fd;
-		cur->fd++;
-		list_push_back(&cur->file_list, &p_file->elem);
-		return p_file->fd;
-	}
-	else
+	if(!p_file)
 	{
 		return ER_FAIL;
 	}
+	p_file->file = new_file;
+	p_file->fd = cur->fd;
+	cur->fd++;
+	list_push_back(&cur->file_list, &p_file->elem);
+	return p_file->fd;
 }
 
 /* close an open file in the process file list */
